@@ -203,9 +203,15 @@ docker build --build-arg EMA_REVISION=<sha> -t kick-tts:<new-tag> .
 docker save kick-tts:<new-tag> | sudo k3s ctr images import -
 kubectl set image deployment/kick-tts kick-tts=kick-tts:<new-tag> -n streaming
 kubectl rollout status deployment/kick-tts -n streaming
+
+# the CronJob must run the same image: update the manifest tag, then apply it
+sed -i 's#image: kick-tts:.*#image: kick-tts:<new-tag>#' deploy/deployment.yaml deploy/cronjob.yaml
+kubectl apply -n streaming -f deploy/cronjob.yaml
 ```
 
-Also update the tag in `deploy/deployment.yaml` and `deploy/cronjob.yaml` so the files match the cluster.
+Editing `deploy/cronjob.yaml` alone changes nothing in the cluster; without the `kubectl apply` the 6-hourly
+subscription job keeps running the previous image. Check both with
+`kubectl get deploy/kick-tts cronjob/kick-tts-subscribe -n streaming -o jsonpath='{..image}'`.
 
 ### Roll back
 
@@ -216,6 +222,11 @@ kubectl rollout undo deployment/kick-tts -n streaming
 # or pin an explicit tag:
 kubectl set image deployment/kick-tts kick-tts=kick-tts:<previous-tag> -n streaming
 ```
+
+`rollout undo` and `set image` only touch the Deployment. Keep the CronJob on the same image: set the tag back in
+`deploy/cronjob.yaml` (and `deploy/deployment.yaml`, so the files match the cluster) and run
+`kubectl apply -n streaming -f deploy/cronjob.yaml`, or in one step
+`kubectl set image cronjob/kick-tts-subscribe ensure=kick-tts:<previous-tag> -n streaming`.
 
 List the images the node holds with `sudo k3s ctr images ls | grep kick-tts`.
 Remove old tags with `sudo k3s ctr images rm docker.io/library/kick-tts:<old-tag>` only after the new one is stable.
