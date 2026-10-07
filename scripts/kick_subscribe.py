@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Manage the Kick webhook event subscriptions kick-tts depends on.
 
-Subcommands: token | resolve [--slug S] | list | ensure | delete <id> [<id> ...]
+Subcommands: token (metadata only, never the token) | resolve [--slug S] | list | ensure | delete <id> [<id> ...]
 
 Configuration (environment):
   KICK_CLIENT_ID, KICK_CLIENT_SECRET   Kick app credentials (required)
@@ -65,6 +65,7 @@ class KickClient:
     # --- plumbing -------------------------------------------------------------------------
 
     def _scrub(self, text: str) -> str:
+        """Redact credentials from any text that originates from a response."""
         for secret in (self._client_secret, self._token):
             if secret:
                 text = text.replace(secret, "***")
@@ -76,7 +77,8 @@ class KickClient:
         except httpx.HTTPError as exc:
             raise KickError(f"{method} {url} failed: {type(exc).__name__}") from None
         if resp.status_code >= 400:
-            raise KickError(self._scrub(f"{method} {url} -> HTTP {resp.status_code}: {_error_text(resp)}"))
+            detail = self._scrub(_error_text(resp))[:200]  # scrub first so truncation cannot leave a partial secret
+            raise KickError(f"{method} {url} -> HTTP {resp.status_code}: {detail}")
         return resp
 
     def _api(self, method: str, path: str, **kwargs: Any) -> httpx.Response:
@@ -159,9 +161,9 @@ class KickClient:
         failed: dict[str, str] = {}
         if missing:
             for item in self.create_subscriptions(broadcaster_user_id, missing):
-                name = str(item.get("name"))
+                name = self._scrub(str(item.get("name")))
                 if item.get("error"):
-                    failed[name] = str(item["error"])
+                    failed[name] = self._scrub(str(item["error"]))[:200]
                 else:
                     created.append(name)
             for name in missing:  # events the API silently omitted from its reply
@@ -180,11 +182,7 @@ def _error_text(resp: httpx.Response) -> str:
         message = resp.json().get("message")
     except (ValueError, AttributeError):
         message = None
-    return str(message or resp.reason_phrase or "error")[:200]
-
-
-def _mask(token: str) -> str:
-    return token[:4] + "..." if len(token) > 8 else "***"
+    return str(message or resp.reason_phrase or "error")
 
 
 def _broadcaster_id(client: KickClient, env: Mapping[str, str], slug: str) -> int:
@@ -202,8 +200,7 @@ def _broadcaster_id(client: KickClient, env: Mapping[str, str], slug: str) -> in
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="kick_subscribe.py", description=__doc__.split("\n\n")[0])
     sub = parser.add_subparsers(dest="command", required=True)
-    p_token = sub.add_parser("token", help="fetch an app access token and show its expiry")
-    p_token.add_argument("--show", action="store_true", help="print the full token (default: masked)")
+    sub.add_parser("token", help="check that an app access token can be fetched; prints metadata only")
     p_resolve = sub.add_parser("resolve", help="resolve a channel slug to broadcaster_user_id")
     p_resolve.add_argument("--slug", default=None, help="channel slug (default: $KICK_CHANNEL_SLUG or anildev)")
     sub.add_parser("list", help="list event subscriptions of this app")
@@ -235,9 +232,8 @@ def main(
         with KickClient(client_id, client_secret, transport=transport) as client:
             if args.command == "token":
                 body = client.fetch_token()
-                token = str(body["access_token"])
                 print(f"token_type={body.get('token_type', 'Bearer')} expires_in={body.get('expires_in')}")
-                print(f"access_token={token if args.show else _mask(token)}")
+                print("access_token=<redacted>")
             elif args.command == "resolve":
                 print(f"{slug} -> broadcaster_user_id={client.resolve_broadcaster_id(slug)}")
             elif args.command == "list":

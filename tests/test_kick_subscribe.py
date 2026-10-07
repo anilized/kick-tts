@@ -214,12 +214,54 @@ def test_missing_credentials_is_config_error(capsys):
     assert "KICK_CLIENT_ID" in capsys.readouterr().err
 
 
-def test_token_command_masks_by_default(capsys):
+def test_token_command_prints_metadata_only(capsys):
     assert _run(FakeKick(), "token") == 0
-    out = capsys.readouterr().out
-    assert ACCESS_TOKEN not in out and "expires_in=7200" in out
-    assert _run(FakeKick(), "token", "--show") == 0
-    assert ACCESS_TOKEN in capsys.readouterr().out
+    captured = capsys.readouterr()
+    text = captured.out + captured.err
+    assert "expires_in=7200" in text and "<redacted>" in text
+    assert ACCESS_TOKEN not in text and CLIENT_SECRET not in text
+    assert ACCESS_TOKEN[:4] not in text.replace("token_type", "")  # no partial token either
+
+
+def test_token_command_has_no_show_option(capsys):
+    assert _run(FakeKick(), "token", "--show") == 2
+    assert ACCESS_TOKEN not in capsys.readouterr().out
+
+
+def test_per_event_error_containing_credentials_is_scrubbed(capsys):
+    leak = f"denied for {CLIENT_SECRET} using token {ACCESS_TOKEN}"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/oauth/token":
+            return httpx.Response(200, json={"access_token": ACCESS_TOKEN})
+        if request.method == "GET":
+            return httpx.Response(200, json={"data": []})
+        return httpx.Response(
+            200, json={"data": [{"name": "kicks.gifted", "version": 1, "error": leak}]}
+        )
+
+    code = ks.main(["ensure"], env={**ENV, "KICK_BROADCASTER_USER_ID": "1"}, transport=httpx.MockTransport(handler))
+    captured = capsys.readouterr()
+    text = captured.out + captured.err
+    assert code == 1
+    assert "denied" in text
+    assert CLIENT_SECRET not in text and ACCESS_TOKEN not in text
+
+
+def test_http_error_message_is_scrubbed_before_truncation(capsys):
+    # the token sits across the 200-char cut: truncating first would leave a partial credential
+    padding = "x" * (200 - len(ACCESS_TOKEN) // 2)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/oauth/token":
+            return httpx.Response(200, json={"access_token": ACCESS_TOKEN})
+        return httpx.Response(500, json={"message": padding + ACCESS_TOKEN + CLIENT_SECRET})
+
+    assert ks.main(["list"], env={**ENV, "KICK_BROADCASTER_USER_ID": "1"}, transport=httpx.MockTransport(handler)) == 1
+    captured = capsys.readouterr()
+    text = captured.out + captured.err
+    assert ACCESS_TOKEN not in text and CLIENT_SECRET not in text
+    assert ACCESS_TOKEN[:8] not in text and ACCESS_TOKEN[-8:] not in text
 
 
 def test_unknown_slug_is_an_error(capsys):

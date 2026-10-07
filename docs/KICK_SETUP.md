@@ -111,7 +111,7 @@ Other subcommands:
 
 | Command | What it does |
 | --- | --- |
-| `token [--show]` | fetch an app token and print type/expiry (token masked unless `--show`) |
+| `token` | check that an app token can be fetched; prints type/expiry only, the token itself is never printed |
 | `resolve [--slug S]` | print the `broadcaster_user_id` for a channel slug |
 | `list` | list this app's subscriptions for the broadcaster (id, event, version, method) |
 | `delete <id> [<id> …]` | delete subscriptions by id (ids come from `list`) |
