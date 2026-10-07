@@ -272,3 +272,49 @@ def test_unknown_slug_is_an_error(capsys):
 
     assert ks.main(["resolve", "--slug", "nobody"], env=ENV, transport=httpx.MockTransport(handler)) == 1
     assert "nobody" in capsys.readouterr().err
+
+
+def test_token_metadata_echoing_credentials_is_redacted(capsys):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "access_token": ACCESS_TOKEN,
+                "token_type": f"Bearer-{ACCESS_TOKEN}",
+                "expires_in": f"7200-{CLIENT_SECRET}",
+            },
+        )
+
+    assert ks.main(["token"], env=ENV, transport=httpx.MockTransport(handler)) == 0
+    captured = capsys.readouterr()
+    text = captured.out + captured.err
+    assert "expires_in=" in text
+    assert ACCESS_TOKEN not in text and CLIENT_SECRET not in text
+
+
+def test_list_fields_echoing_credentials_are_redacted(capsys):
+    leaky = {
+        "id": f"id-{CLIENT_SECRET}",
+        "event": f"kicks.gifted-{ACCESS_TOKEN}",
+        "version": f"1-{ACCESS_TOKEN}",
+        "method": f"webhook-{CLIENT_SECRET}",
+        "broadcaster_user_id": BROADCASTER,
+    }
+    kick = FakeKick(existing=[leaky])
+    assert _run(kick, "list") == 0
+    captured = capsys.readouterr()
+    text = captured.out + captured.err
+    assert "kicks.gifted" in text
+    assert ACCESS_TOKEN not in text and CLIENT_SECRET not in text
+
+
+def test_secrets_in_non_json_error_bodies_are_redacted(capsys):
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/oauth/token":
+            return httpx.Response(200, json={"access_token": ACCESS_TOKEN})
+        return httpx.Response(502, text=f"upstream {ACCESS_TOKEN} {CLIENT_SECRET}")
+
+    assert ks.main(["delete", "x"], env=ENV, transport=httpx.MockTransport(handler)) == 1
+    captured = capsys.readouterr()
+    assert ACCESS_TOKEN not in captured.out + captured.err
+    assert CLIENT_SECRET not in captured.out + captured.err

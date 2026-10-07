@@ -64,7 +64,7 @@ class KickClient:
 
     # --- plumbing -------------------------------------------------------------------------
 
-    def _scrub(self, text: str) -> str:
+    def redact(self, text: str) -> str:
         """Redact credentials from any text that originates from a response."""
         for secret in (self._client_secret, self._token):
             if secret:
@@ -77,7 +77,7 @@ class KickClient:
         except httpx.HTTPError as exc:
             raise KickError(f"{method} {url} failed: {type(exc).__name__}") from None
         if resp.status_code >= 400:
-            detail = self._scrub(_error_text(resp))[:200]  # scrub first so truncation cannot leave a partial secret
+            detail = self.redact(_error_text(resp))[:200]  # scrub first so truncation cannot leave a partial secret
             raise KickError(f"{method} {url} -> HTTP {resp.status_code}: {detail}")
         return resp
 
@@ -97,7 +97,8 @@ class KickClient:
     def get_token(self) -> str:
         """App access token via the client_credentials grant (cached for this client)."""
         if self._token is None:
-            self._token = str(self.fetch_token()["access_token"])
+            self.fetch_token()
+        assert self._token is not None
         return self._token
 
     def fetch_token(self) -> dict[str, Any]:
@@ -116,6 +117,7 @@ class KickClient:
             body = None
         if not isinstance(body, dict) or not body.get("access_token"):
             raise KickError("token response did not contain an access_token")
+        self._token = str(body["access_token"])  # registered so redact() covers it from here on
         return body
 
     def resolve_broadcaster_id(self, slug: str = DEFAULT_SLUG) -> int:
@@ -161,9 +163,9 @@ class KickClient:
         failed: dict[str, str] = {}
         if missing:
             for item in self.create_subscriptions(broadcaster_user_id, missing):
-                name = self._scrub(str(item.get("name")))
+                name = self.redact(str(item.get("name")))
                 if item.get("error"):
-                    failed[name] = self._scrub(str(item["error"]))[:200]
+                    failed[name] = self.redact(str(item["error"]))[:200]
                 else:
                     created.append(name)
             for name in missing:  # events the API silently omitted from its reply
@@ -228,38 +230,47 @@ def main(
         return 2
     slug = getattr(args, "slug", None) or env.get("KICK_CHANNEL_SLUG") or DEFAULT_SLUG
 
-    try:
-        with KickClient(client_id, client_secret, transport=transport) as client:
-            if args.command == "token":
-                body = client.fetch_token()
-                print(f"token_type={body.get('token_type', 'Bearer')} expires_in={body.get('expires_in')}")
-                print("access_token=<redacted>")
-            elif args.command == "resolve":
-                print(f"{slug} -> broadcaster_user_id={client.resolve_broadcaster_id(slug)}")
-            elif args.command == "list":
-                bid = _broadcaster_id(client, env, slug)
-                subs = client.list_subscriptions(bid)
-                print(f"{len(subs)} subscription(s) for broadcaster_user_id={bid}")
-                for s in subs:
-                    print(f"  {s.get('id')}  {s.get('event')}  v{s.get('version')}  {s.get('method')}")
-            elif args.command == "ensure":
-                bid = _broadcaster_id(client, env, slug)
-                report = client.ensure(bid)
-                print(f"broadcaster_user_id={bid}")
-                for name in report["already"]:
-                    print(f"  ok       {name} (already subscribed)")
-                for name in report["created"]:
-                    print(f"  created  {name}")
-                for name, err in report["failed"].items():
-                    print(f"  FAILED   {name}: {err}")
-                if report["failed"]:
-                    return 1
-            elif args.command == "delete":
-                client.delete_subscriptions(args.ids)
-                print(f"deleted {len(args.ids)} subscription(s)")
-    except KickError as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 1
+    with KickClient(client_id, client_secret, transport=transport) as client:
+
+        def out(line: str, stream: Any = None) -> None:
+            """Every line printed goes through here, so nothing response-derived bypasses redaction."""
+            print(client.redact(line), file=stream or sys.stdout)
+
+        try:
+            return _run(client, args, env, slug, out)
+        except KickError as exc:
+            out(f"error: {exc}", sys.stderr)
+            return 1
+
+
+def _run(client: KickClient, args: argparse.Namespace, env: Mapping[str, str], slug: str, out: Any) -> int:
+    if args.command == "token":
+        body = client.fetch_token()  # registers the access token with the redactor
+        out(f"token_type={body.get('token_type', 'Bearer')} expires_in={body.get('expires_in')}")
+        out("access_token=<redacted>")
+    elif args.command == "resolve":
+        out(f"{slug} -> broadcaster_user_id={client.resolve_broadcaster_id(slug)}")
+    elif args.command == "list":
+        bid = _broadcaster_id(client, env, slug)
+        subs = client.list_subscriptions(bid)
+        out(f"{len(subs)} subscription(s) for broadcaster_user_id={bid}")
+        for s in subs:
+            out(f"  {s.get('id')}  {s.get('event')}  v{s.get('version')}  {s.get('method')}")
+    elif args.command == "ensure":
+        bid = _broadcaster_id(client, env, slug)
+        report = client.ensure(bid)
+        out(f"broadcaster_user_id={bid}")
+        for name in report["already"]:
+            out(f"  ok       {name} (already subscribed)")
+        for name in report["created"]:
+            out(f"  created  {name}")
+        for name, err in report["failed"].items():
+            out(f"  FAILED   {name}: {err}")
+        if report["failed"]:
+            return 1
+    elif args.command == "delete":
+        client.delete_subscriptions(args.ids)
+        out(f"deleted {len(args.ids)} subscription(s)")
     return 0
 
 
