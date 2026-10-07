@@ -50,3 +50,14 @@ def test_protocol_messages_handled():
 
 def test_transparent_background():
     assert re.search(r"background:\s*transparent", _html())
+
+
+def test_caption_honours_server_duration():
+    """The caption must stay for duration_s even if the media element ends early (OBS), and must be
+    force-ended shortly after that length when `ended` never fires."""
+    src = OVERLAY.read_text(encoding="utf-8")
+    assert "msg.duration_s" in src
+    assert "GRACE_MS" in src
+    assert "onMediaDone" in src and "onPlaybackStarted" in src
+    # skip/clear still end the item immediately, bypassing the duration clock
+    assert "case 'skip':\n        finishCurrent();" in src

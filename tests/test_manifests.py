@@ -24,9 +24,14 @@ def _one(name: str, kind: str) -> dict:
     return docs[0]
 
 
+def _committed_yaml() -> list[Path]:
+    """deploy/*.yaml minus *.local.yaml (the filled-in secret, git-ignored, never part of the checks)."""
+    return [p for p in sorted(DEPLOY.glob("*.yaml")) if not p.name.endswith(".local.yaml")]
+
+
 def _all_docs() -> list[dict]:
     docs: list[dict] = []
-    for path in sorted(DEPLOY.glob("*.yaml")):
+    for path in _committed_yaml():
         docs.extend(_load(path.name))
     return docs
 
@@ -48,7 +53,7 @@ def _env(container: dict) -> dict[str, str]:
 
 
 def test_every_deploy_file_parses_and_has_a_kind():
-    files = sorted(DEPLOY.glob("*.yaml"))
+    files = _committed_yaml()
     names = {p.name for p in files}
     assert {
         "deployment.yaml", "service.yaml", "ingress.yaml", "pvc.yaml",
@@ -341,7 +346,7 @@ _SECRET_PATTERNS = [
 
 @pytest.mark.parametrize(
     "path",
-    [*sorted(DEPLOY.glob("*.yaml")), ROOT / "Dockerfile", ROOT / "docs" / "DEPLOY.md"],
+    [*_committed_yaml(), ROOT / "Dockerfile", ROOT / "docs" / "DEPLOY.md"],
     ids=lambda p: p.name,
 )
 def test_no_real_looking_secrets(path: Path):

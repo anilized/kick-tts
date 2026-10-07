@@ -218,8 +218,11 @@ keeps those pins equal to the dev venv.
 and a bottom-anchored 48 px caption that is visible only while an item plays. It builds the WebSocket URL
 as `new URL('ws' + location.search, location.href)` (http → ws, https → wss), so it works both at
 `http://127.0.0.1:8000/overlay?key=…` and behind the `/tts` ingress rewrite. Items are queued locally and
-played one at a time through an `<audio>` element from a `data:audio/wav;base64,…` source; every item is
-acked once with `{type: "played", id}` on end, error, skip or clear. `skip` stops the current audio,
+played one at a time through an `<audio>` element from a `data:audio/wav;base64,…` source. The caption
+stays for the server-reported `duration_s` of the item even when the media element fires `ended` or
+`error` early (OBS's browser engine does), and the item is force-ended 2 s after that length if `ended`
+never arrives; every item is acked once with `{type: "played", id}` when it ends, on skip or on clear.
+`skip` stops the current audio,
 `clear` also drops the local buffer, `paused` is shown in the debug bar only, and `ping` is answered with
 `pong`. The socket reconnects with 1 → 2 → 4 → 8 → 10 s backoff; on reconnect the local buffer is dropped.
 Append `&debug=1` to the URL to show the connection status. A rejected `play()` (autoplay policy) shows a

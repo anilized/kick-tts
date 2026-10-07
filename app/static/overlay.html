@@ -87,7 +87,14 @@
   var status = 'connecting';
 
   var buffer = [];     // pending items (FIFO)
-  var current = null;  // {item, audio, acked}
+  var current = null;  // {item, audio, acked, startedAt, endTimer}
+
+  // The caption stays for the server-reported audio length (item.duration_s) even when the media
+  // element reports `ended`/`error` early (OBS's browser engine does this), and is force-ended
+  // GRACE_MS after that length when `ended` never arrives. Skip/clear still end it at once.
+  var GRACE_MS = 2000;
+
+  function now() { return (window.performance && performance.now) ? performance.now() : Date.now(); }
 
   function renderDebug() {
     if (!debugOn) return;
@@ -120,6 +127,7 @@
     if (!cur || cur.acked) return;
     cur.acked = true;
     current = null;
+    if (cur.endTimer !== null) { clearTimeout(cur.endTimer); cur.endTimer = null; }
     cur.audio.onended = null;
     cur.audio.onerror = null;
     try { cur.audio.pause(); } catch (e) { /* ignore */ }
@@ -131,12 +139,36 @@
     playNext();
   }
 
+  function armEndTimer(cur, delayMs) {
+    if (cur.endTimer !== null) clearTimeout(cur.endTimer);
+    cur.endTimer = setTimeout(function () {
+      cur.endTimer = null;
+      if (current === cur) finishCurrent();
+    }, Math.max(0, delayMs));
+  }
+
+  // Playback actually started: the caption clock runs from here.
+  function onPlaybackStarted(cur) {
+    if (cur.startedAt !== null) return;
+    cur.startedAt = now();
+    armEndTimer(cur, cur.item.duration * 1000 + GRACE_MS);
+  }
+
+  // `ended` or `error` from the media element: honour the server-side duration before hiding.
+  function onMediaDone(cur) {
+    if (current !== cur) return;
+    var remaining = cur.startedAt === null ? 0 : (cur.startedAt + cur.item.duration * 1000) - now();
+    if (remaining > 0) armEndTimer(cur, remaining);
+    else finishCurrent();
+  }
+
   function tryPlay(cur) {
     var p;
     try { p = cur.audio.play(); } catch (e) { p = Promise.reject(e); }
     if (p && typeof p.then === 'function') {
       p.then(function () {
         hintEl.classList.remove('show');
+        if (current === cur) onPlaybackStarted(cur);
       }, function (err) {
         if (current !== cur) return;
         if (err && err.name === 'NotAllowedError') {
@@ -152,10 +184,11 @@
     if (current || buffer.length === 0) { renderDebug(); return; }
     var item = buffer.shift();
     var audio = new Audio();
-    var cur = { item: item, audio: audio, acked: false };
+    var cur = { item: item, audio: audio, acked: false, startedAt: null, endTimer: null };
     current = cur;
-    audio.onended = function () { if (current === cur) finishCurrent(); };
-    audio.onerror = function () { if (current === cur) finishCurrent(); };
+    audio.onended = function () { onMediaDone(cur); };
+    audio.onerror = function () { onMediaDone(cur); };
+    audio.onplaying = function () { if (current === cur) onPlaybackStarted(cur); };
     audio.src = 'data:audio/wav;base64,' + item.audio_b64_wav;
     showCaption(item);
     renderDebug();
@@ -170,11 +203,13 @@
     switch (msg.type) {
       case 'item':
         if (typeof msg.id === 'string' && typeof msg.audio_b64_wav === 'string') {
+          var duration = Number(msg.duration_s);
           buffer.push({
             id: msg.id,
             user: String(msg.user == null ? '' : msg.user),
             caption: String(msg.caption == null ? '' : msg.caption),
-            audio_b64_wav: msg.audio_b64_wav
+            audio_b64_wav: msg.audio_b64_wav,
+            duration: (isFinite(duration) && duration > 0) ? duration : 0
           });
           playNext();
         }
