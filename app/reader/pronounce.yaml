@@ -1,0 +1,101 @@
+# Pronunciation tables for the rules reader (app/reader/rules.py).
+#
+# Edit this file to change how chat text is read out loud. In Kubernetes it is mounted as a
+# ConfigMap (set PRONOUNCE_PATH to the mount path); the file is read once when the service starts,
+# so restart the pod after editing. Check the effect offline with:
+#   python scripts/compare_reader.py tests/data/chat_samples.txt
+#
+# Rules of thumb
+# - Keys are matched AFTER the message is lower-cased the Turkish way (I -> ı, İ -> i), so write
+#   keys in lower case. Values are written exactly as the TTS should read them.
+# - Quote everything. Bare words such as y, n, on, off, yes, no turn into booleans in YAML.
+# - Swear words are never censored; do not add replacements for them here.
+# - Gamer acronyms and emote names (GG WP, KEKW, xd) are NOT translated, only respelled so the
+#   Turkish model says them the way Turkish chat says them (GG WP -> "gege vepe").
+
+# Turkish chat abbreviations -> the real words. Whole-word match; multi-word keys are allowed and
+# the longest key wins ("iyi yyn" before "yyn").
+slang:
+  "slm": "selam"
+  "sa": "selamün aleyküm"
+  "as": "aleyküm selam"
+  "mrb": "merhaba"
+  "nbr": "naber"
+  "tmm": "tamam"
+  "tm": "tamam"
+  "tşk": "teşekkürler"
+  "tsk": "teşekkürler"
+  "tşkler": "teşekkürler"
+  "eyw": "eyvallah"
+  "eyv": "eyvallah"
+  "iyi yyn": "iyi yayınlar"
+  "yyn": "yayın"
+  "kib": "kendine iyi bak"
+  "nslsn": "nasılsın"
+  "bi": "bir"
+  "bişey": "bir şey"
+  "bişi": "bir şey"
+  "napıyon": "ne yapıyorsun"
+  "naptın": "ne yaptın"
+  "knk": "kanka"
+  "kank": "kanka"
+  "yk": "yok"
+  "dk": "dakika"
+  "sn": "saniye"
+  "pls": "lütfen"
+  "plz": "lütfen"
+  "lütfn": "lütfen"
+  "tl": "lira"
+  "yt": "youtube"
+
+# Whole-token pronunciation overrides. These win over the automatic letter rules below.
+say_as:
+  "ok": "okey"
+  "ez": "iz"
+  "lol": "lol"
+  "pog": "pog"
+  "omg": "o em ge"
+  "aq": "a kü"
+
+# Turkish letter names. Used for tokens that cannot form a syllable (no vowels), e.g.
+# GG -> "ge ge" -> "gege", xd -> "iks de" -> "iksde", jsjs -> "jesejese".
+letter:
+  "b": "be"
+  "c": "ce"
+  "ç": "çe"
+  "d": "de"
+  "f": "fe"
+  "g": "ge"
+  "ğ": "ge"
+  "h": "he"
+  "j": "je"
+  "k": "ke"
+  "l": "le"
+  "m": "me"
+  "n": "ne"
+  "p": "pe"
+  "r": "re"
+  "s": "se"
+  "ş": "şe"
+  "t": "te"
+  "v": "ve"
+  "w": "ve"
+  "y": "ye"
+  "z": "ze"
+  "x": "iks"
+  "q": "kü"
+
+# Letters foreign to Turkish when they sit next to a vowel (kekw -> kekve, wow -> vov).
+# Next to a consonant they use the letter name above instead.
+foreign:
+  "w": "v"
+  "q": "k"
+  "x": "ks"
+
+# Letters that count as vowels for the "no vowels -> spell the letters" rule.
+vowels: "aeıioöuü"
+
+# Size limits (optional; the values below are the defaults).
+limits:
+  max_token: 20     # a keyboard smash longer than this many letters is cut
+  max_repeats: 3    # "KEKW KEKW KEKW KEKW KEKW" is read three times
