@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+httpx
+websockets
+cryptography
+anthropic
+prometheus-client
+pydantic
+pydantic-settings
+pyyaml
+numpy
+soundfile

@@ -1,0 +1,2584 @@
+basePath: ""
+definitions:
+  endpoints.AcceptChannelRewardRedemptionsParams:
+    properties:
+      ids:
+        description: List of redemption IDs to accept. A maximum of 25 redemptions
+          can be accepted per request. IDs must be unique.
+        example:
+        - 01KEWZ2RKYZZFGD154K50Y3F8D
+        - 01KEWZ2YC27070XWMHKFJR6C87
+        items:
+          format: ulid
+          type: string
+        maxItems: 25
+        minItems: 1
+        type: array
+        uniqueItems: true
+    required:
+    - ids
+    type: object
+  endpoints.AdBreak:
+    properties:
+      id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        format: uuid
+        type: string
+      remaining_ad_breaks:
+        example: 2
+        type: integer
+    type: object
+  endpoints.AdBreakErrorResponse:
+    properties:
+      data:
+        enum:
+        - CHANNEL_IS_NOT_LIVE
+        - CHANNEL_NOT_OPTED_IN
+        - ADS_BLOCKED
+        - AD_BREAK_ACTIVE
+        - MAX_AD_BREAKS_REACHED
+        - AUTO_ADS_ACTIVE
+        example: CHANNEL_IS_NOT_LIVE
+        type: string
+      message:
+        example: Bad request
+        type: string
+    type: object
+  endpoints.AdBreakLimits:
+    properties:
+      max:
+        example: 3
+        type: integer
+      period_seconds:
+        example: 3600
+        type: integer
+    type: object
+  endpoints.AdBreakStatus:
+    properties:
+      ad_breaks:
+        items:
+          $ref: '#/definitions/endpoints.AdBreakStatusItem'
+        type: array
+      ads_blocked:
+        example: false
+        type: boolean
+      auto_ads_active:
+        example: false
+        type: boolean
+      limits:
+        $ref: '#/definitions/endpoints.AdBreakLimits'
+      opted_in:
+        example: true
+        type: boolean
+      remaining_ad_breaks:
+        example: 2
+        type: integer
+    type: object
+  endpoints.AdBreakStatusItem:
+    properties:
+      break_duration_seconds:
+        example: 30
+        type: integer
+      created_at:
+        example: "2026-01-02T03:04:05Z"
+        type: string
+      id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        format: uuid
+        type: string
+      source:
+        example: public_api
+        type: string
+      status:
+        example: inserted
+        type: string
+    type: object
+  endpoints.AdsEnrollErrorResponse:
+    properties:
+      data:
+        enum:
+        - CHANNEL_NOT_FOUND
+        - CHANNEL_IS_LIVE
+        - CHANNEL_NEVER_STREAMED
+        example: CHANNEL_IS_LIVE
+        type: string
+      message:
+        example: Bad request
+        type: string
+    type: object
+  endpoints.CategoryDetail:
+    properties:
+      id:
+        example: 101
+        type: integer
+      name:
+        example: Old School Runescape
+        type: string
+      tags:
+        example:
+        - pog
+        - chad
+        items:
+          type: string
+        type: array
+      thumbnail:
+        example: https://kick.com/img/categories/old-school-runescape.jpeg
+        type: string
+      viewer_count:
+        example: 1000
+        type: integer
+    type: object
+  endpoints.CategoryResponse:
+    properties:
+      id:
+        example: 101
+        type: integer
+      name:
+        example: Old School Runescape
+        type: string
+      thumbnail:
+        example: https://kick.com/img/categories/old-school-runescape.jpeg
+        type: string
+    type: object
+  endpoints.CategoryWithTags:
+    properties:
+      id:
+        example: 101
+        type: integer
+      name:
+        example: Rust
+        type: string
+      tags:
+        example:
+        - FPS
+        - Shooter
+        - Adventure
+        items:
+          type: string
+        type: array
+      thumbnail:
+        example: https://kick.com/img/categories/rust.jpeg
+        type: string
+    type: object
+  endpoints.ChannelReward:
+    properties:
+      background_color:
+        example: '#00e701'
+        format: hexcolor
+        type: string
+      cost:
+        example: 100
+        type: integer
+      description:
+        example: Request a song by providing a URL
+        type: string
+      id:
+        example: 01HZ8X9K2M4N6P8Q0R2S4T6V8W0Y2Z4
+        format: ulid
+        type: string
+      is_enabled:
+        example: true
+        type: boolean
+      is_paused:
+        example: false
+        type: boolean
+      is_user_input_required:
+        example: false
+        type: boolean
+      should_redemptions_skip_request_queue:
+        example: false
+        type: boolean
+      title:
+        example: Song Request
+        type: string
+    type: object
+  endpoints.ChannelRewardRedemption:
+    properties:
+      id:
+        example: 01KCTMJ2X3DXT814CVX8FR9T1D
+        format: ulid
+        type: string
+      redeemed_at:
+        example: "2025-12-19T06:26:36Z"
+        format: date-time
+        type: string
+      redeemer:
+        $ref: '#/definitions/endpoints.UserInfo'
+      status:
+        enum:
+        - pending
+        - accepted
+        - rejected
+        example: pending
+        type: string
+      user_input:
+        example: sorry mr strimer
+        type: string
+    required:
+    - id
+    - redeemed_at
+    - redeemer
+    - status
+    - user_input
+    type: object
+  endpoints.ChatResp:
+    properties:
+      is_sent:
+        example: true
+        type: boolean
+      message_id:
+        example: 828f83bb-e391-4c78-9e91-af35a172840e
+        format: uuid
+        type: string
+    type: object
+  endpoints.DeleteModerationBansParams:
+    properties:
+      broadcaster_user_id:
+        example: 123
+        type: integer
+      user_id:
+        example: 333
+        type: integer
+    required:
+    - broadcaster_user_id
+    - user_id
+    type: object
+  endpoints.DeleteModerationBansResp:
+    type: object
+  endpoints.ErrorResponse:
+    properties:
+      data: {}
+      message:
+        type: string
+    type: object
+  endpoints.Event:
+    properties:
+      name:
+        example: chat.message.sent
+        type: string
+      version:
+        example: 1
+        type: integer
+    required:
+    - name
+    - version
+    type: object
+  endpoints.FailedRedemption:
+    properties:
+      id:
+        example: 01KERB68MZZ04551D6X5TNRFYV
+        format: ulid
+        type: string
+      reason:
+        enum:
+        - UNKNOWN
+        - NOT_PENDING
+        - NOT_FOUND
+        - NOT_OWNED
+        example: NOT_OWNED
+        type: string
+    type: object
+  endpoints.GetChannel:
+    properties:
+      active_gifted_subscribers_count:
+        example: 30
+        type: integer
+      active_subscribers_count:
+        example: 150
+        type: integer
+      banner_picture:
+        example: https://kick.com/img/default-banner-pictures/default2.jpeg
+        type: string
+      broadcaster_user_id:
+        example: 123
+        type: integer
+      canceled_subscribers_count:
+        example: 25
+        type: integer
+      category:
+        $ref: '#/definitions/endpoints.CategoryResponse'
+      channel_description:
+        example: Channel description
+        type: string
+      slug:
+        example: john-doe
+        type: string
+      stream:
+        $ref: '#/definitions/endpoints.Stream'
+      stream_title:
+        example: My first stream
+        type: string
+    type: object
+  endpoints.GetEventSubscription:
+    properties:
+      app_id:
+        example: 01J9K2M4N6P8Q0R2S4T6V8W0Y2Z4A6B8
+        type: string
+      broadcaster_user_id:
+        example: 123
+        type: integer
+      created_at:
+        example: "2021-01-01T00:00:00Z"
+        type: string
+      event:
+        example: chat.message.sent
+        type: string
+      id:
+        example: 01HZ8X9K2M4N6P8Q0R2S4T6V8W0Y2Z4
+        type: string
+      method:
+        example: webhook
+        type: string
+      updated_at:
+        example: "2021-01-01T00:00:00Z"
+        type: string
+      version:
+        example: 1
+        type: integer
+    type: object
+  endpoints.GetPublicKeyResponse:
+    properties:
+      data:
+        $ref: '#/definitions/endpoints.PublicKey'
+      message:
+        type: string
+    type: object
+  endpoints.GetUser:
+    properties:
+      email:
+        example: john.doe@example.com
+        type: string
+      name:
+        example: John Doe
+        type: string
+      profile_picture:
+        example: https://kick.com/img/default-profile-pictures/default-avatar-2.webp
+        type: string
+      user_id:
+        example: 123
+        type: integer
+    type: object
+  endpoints.HTTPError:
+    properties:
+      message:
+        type: string
+    type: object
+  endpoints.KicksLeaderboard:
+    properties:
+      lifetime:
+        items:
+          $ref: '#/definitions/endpoints.KicksLeaderboardEntry'
+        type: array
+      month:
+        items:
+          $ref: '#/definitions/endpoints.KicksLeaderboardEntry'
+        type: array
+      week:
+        items:
+          $ref: '#/definitions/endpoints.KicksLeaderboardEntry'
+        type: array
+    type: object
+  endpoints.KicksLeaderboardEntry:
+    properties:
+      gifted_amount:
+        example: 100
+        type: integer
+      rank:
+        example: 1
+        type: integer
+      user_id:
+        example: 123
+        type: integer
+      username:
+        example: john-doe
+        type: string
+    type: object
+  endpoints.LivestreamCategory:
+    properties:
+      id:
+        example: 123
+        type: integer
+      name:
+        example: My Stream Category
+        type: string
+      thumbnail:
+        example: https://example.com/thumbnail.jpg
+        type: string
+    required:
+    - id
+    - name
+    - thumbnail
+    type: object
+  endpoints.LivestreamChannel:
+    properties:
+      slug:
+        example: streamer-123
+        type: string
+    required:
+    - slug
+    type: object
+  endpoints.LivestreamStats:
+    properties:
+      total_count:
+        example: 100
+        type: integer
+    type: object
+  endpoints.LivestreamUser:
+    properties:
+      id:
+        example: 123
+        type: integer
+      profile_picture:
+        example: https://example.com/profile.jpg
+        type: string
+      username:
+        example: streamer_123
+        type: string
+    required:
+    - id
+    - profile_picture
+    - username
+    type: object
+  endpoints.LivestreamV2:
+    properties:
+      broadcaster_user:
+        $ref: '#/definitions/endpoints.LivestreamUser'
+      category:
+        $ref: '#/definitions/endpoints.LivestreamCategory'
+      channel:
+        $ref: '#/definitions/endpoints.LivestreamChannel'
+      has_mature_content:
+        example: true
+        type: boolean
+      id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        format: uuid
+        type: string
+      language_code:
+        example: en
+        type: string
+      started_at:
+        example: "2022-01-15T03:00:00Z"
+        type: string
+      tags:
+        example:
+        - tag1
+        - tag2
+        items:
+          type: string
+        type: array
+      thumbnail:
+        example: https://example.com/thumbnail.jpg
+        type: string
+      title:
+        example: My Stream Title
+        type: string
+      viewer_count:
+        example: 100
+        type: integer
+    required:
+    - broadcaster_user
+    - category
+    - channel
+    - has_mature_content
+    - id
+    - language_code
+    - started_at
+    - tags
+    - thumbnail
+    - title
+    - viewer_count
+    type: object
+  endpoints.LivestreamWithCategory:
+    properties:
+      broadcaster_user_id:
+        example: 123
+        type: integer
+      category:
+        $ref: '#/definitions/endpoints.CategoryResponse'
+      channel_id:
+        example: 456
+        type: integer
+      custom_tags:
+        example:
+        - tag1
+        - tag2
+        items:
+          type: string
+        type: array
+      has_mature_content:
+        example: true
+        type: boolean
+      language:
+        example: en
+        type: string
+      profile_picture:
+        example: https://kick.com/img/default-profile-pictures/default2.jpeg
+        type: string
+      slug:
+        example: john-doe
+        type: string
+      started_at:
+        example: "0001-01-01T00:00:00Z"
+        type: string
+      stream_title:
+        example: My first stream
+        type: string
+      thumbnail:
+        example: https://kick.com/img/default-thumbnail-pictures/default2.jpeg
+        type: string
+      viewer_count:
+        example: 73
+        type: integer
+    type: object
+  endpoints.MinimalChannelReward:
+    properties:
+      can_manage:
+        description: Is true if your app can manage the reward and associated redemptions.
+        example: true
+        type: boolean
+      cost:
+        example: 100
+        format: uint64
+        type: integer
+      description:
+        example: Request to have your ban lifted
+        type: string
+      id:
+        example: 01KCTMJ2X3DXT814CVX8FR9T1D
+        format: ulid
+        type: string
+      is_deleted:
+        description: Only present if the reward has been deleted.
+        example: false
+        type: boolean
+      title:
+        example: Unban Request
+        type: string
+    required:
+    - id
+    - title
+    type: object
+  endpoints.PaginatedResponse-endpoints_CategoryWithTags:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/endpoints.CategoryWithTags'
+        type: array
+      message:
+        type: string
+      pagination:
+        $ref: '#/definitions/endpoints.Pagination'
+    required:
+    - data
+    - message
+    - pagination
+    type: object
+  endpoints.PaginatedResponse-endpoints_LivestreamV2:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/endpoints.LivestreamV2'
+        type: array
+      message:
+        type: string
+      pagination:
+        $ref: '#/definitions/endpoints.Pagination'
+    required:
+    - data
+    - message
+    - pagination
+    type: object
+  endpoints.PaginatedResponse-endpoints_RedemptionsByReward:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/endpoints.RedemptionsByReward'
+        type: array
+      message:
+        type: string
+      pagination:
+        $ref: '#/definitions/endpoints.Pagination'
+    required:
+    - data
+    - message
+    - pagination
+    type: object
+  endpoints.Pagination:
+    properties:
+      next_cursor:
+        type: string
+    required:
+    - next_cursor
+    type: object
+  endpoints.PatchChannelRewardsBody:
+    properties:
+      background_color:
+        example: '#00e701'
+        format: hexcolor
+        type: string
+      cost:
+        example: 100
+        minimum: 1
+        type: integer
+      description:
+        example: Updated description
+        maxLength: 200
+        type: string
+      is_enabled:
+        example: true
+        type: boolean
+      is_paused:
+        example: false
+        type: boolean
+      is_user_input_required:
+        example: false
+        type: boolean
+      should_redemptions_skip_request_queue:
+        example: false
+        type: boolean
+      title:
+        example: Updated Title
+        maxLength: 50
+        type: string
+    type: object
+  endpoints.PatchChannelsParams:
+    properties:
+      category_id:
+        example: 123
+        minimum: 1
+        type: integer
+      custom_tags:
+        example:
+        - pog
+        - chad
+        items:
+          type: string
+        maxItems: 10
+        type: array
+      stream_title:
+        example: My first stream
+        minLength: 1
+        type: string
+    type: object
+  endpoints.PostAdBreakBody:
+    properties:
+      break_duration_seconds:
+        example: 30
+        maximum: 90
+        minimum: 7
+        type: integer
+      id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        format: uuid
+        type: string
+    required:
+    - break_duration_seconds
+    - id
+    type: object
+  endpoints.PostChannelRewardsBody:
+    properties:
+      background_color:
+        default: '#00e701'
+        example: '#fff111'
+        format: hexcolor
+        type: string
+      cost:
+        example: 100
+        minimum: 1
+        type: integer
+      description:
+        example: Request a song by providing a URL
+        maxLength: 200
+        type: string
+      is_enabled:
+        default: true
+        example: true
+        type: boolean
+      is_user_input_required:
+        default: false
+        example: false
+        type: boolean
+      should_redemptions_skip_request_queue:
+        default: false
+        example: false
+        type: boolean
+      title:
+        example: Song Request
+        maxLength: 50
+        type: string
+    required:
+    - cost
+    - title
+    type: object
+  endpoints.PostChatParams:
+    properties:
+      broadcaster_user_id:
+        example: 123
+        type: integer
+      content:
+        example: Pog
+        maxLength: 500
+        type: string
+      reply_to_message_id:
+        example: 828f83bb-e391-4c78-9e91-af35a172840e
+        format: uuid
+        type: string
+      type:
+        enum:
+        - user
+        - bot
+        type: string
+    required:
+    - content
+    - type
+    type: object
+  endpoints.PostEventSubscription:
+    properties:
+      error:
+        type: string
+      name:
+        example: chat.message.sent
+        type: string
+      subscription_id:
+        example: 01HZ8X9K2M4N6P8Q0R2S4T6V8W0Y2Z4
+        type: string
+      version:
+        example: 1
+        type: integer
+    required:
+    - name
+    - version
+    type: object
+  endpoints.PostEventsSubscriptionsParams:
+    properties:
+      broadcaster_user_id:
+        description: |-
+          When using a user access token, this field will be ignored and the broadcaster user ID will be inferred from the user access token.
+          When using an app access token, this field is required.
+        example: 123
+        type: integer
+      events:
+        items:
+          $ref: '#/definitions/endpoints.Event'
+        type: array
+      method:
+        enum:
+        - webhook
+        type: string
+    required:
+    - events
+    type: object
+  endpoints.PostModerationBansParams:
+    properties:
+      broadcaster_user_id:
+        example: 123
+        type: integer
+      duration:
+        description: To ban a user, don't include this field. To put a user in a timeout,
+          include the timeout period in minutes.
+        example: 10
+        maximum: 10080
+        minimum: 1
+        type: integer
+      reason:
+        example: Not vibing
+        maxLength: 100
+        type: string
+      user_id:
+        example: 333
+        type: integer
+    required:
+    - broadcaster_user_id
+    - user_id
+    type: object
+  endpoints.PostModerationBansResp:
+    type: object
+  endpoints.PostTokenIntrospectResponse:
+    properties:
+      active:
+        type: boolean
+      client_id:
+        example: 0144Y845NBDSST5H2G1DVY2T25
+        type: string
+      exp:
+        example: 1719619200
+        type: integer
+      scope:
+        example: user:read chat:write moderation:ban
+        type: string
+      token_type:
+        example: user
+        type: string
+    type: object
+  endpoints.PublicKey:
+    properties:
+      public_key:
+        type: string
+    type: object
+  endpoints.RedemptionsByReward:
+    properties:
+      redemptions:
+        items:
+          $ref: '#/definitions/endpoints.ChannelRewardRedemption'
+        type: array
+      reward:
+        $ref: '#/definitions/endpoints.MinimalChannelReward'
+    required:
+    - redemptions
+    - reward
+    type: object
+  endpoints.RejectChannelRewardRedemptionsParams:
+    properties:
+      ids:
+        description: List of redemption IDs to reject. A maximum of 25 redemptions
+          can be rejected per request. IDs must be unique.
+        example:
+        - 01KEWZ2RKYZZFGD154K50Y3F8D
+        - 01KEWZ2YC27070XWMHKFJR6C87
+        items:
+          format: ulid
+          type: string
+        maxItems: 25
+        minItems: 1
+        type: array
+        uniqueItems: true
+    required:
+    - ids
+    type: object
+  endpoints.Stream:
+    properties:
+      custom_tags:
+        example:
+        - tag1
+        - tag2
+        items:
+          type: string
+        type: array
+      is_live:
+        example: true
+        type: boolean
+      is_mature:
+        example: true
+        type: boolean
+      key:
+        example: super-secret-stream-key
+        type: string
+      language:
+        example: en
+        type: string
+      start_time:
+        example: "0001-01-01T00:00:00Z"
+        type: string
+      thumbnail:
+        example: https://kick.com/img/default-thumbnail-pictures/default2.jpeg
+        type: string
+      url:
+        example: rtmps://stream.kick.com/1234567890
+        type: string
+      viewer_count:
+        example: 67
+        type: integer
+    type: object
+  endpoints.SwagPaginatedErrResp:
+    properties:
+      data: {}
+      message:
+        type: string
+      pagination: {}
+    required:
+    - message
+    type: object
+  endpoints.UserInfo:
+    properties:
+      user_id:
+        example: 123
+        format: uint64
+        type: integer
+    required:
+    - user_id
+    type: object
+  httpx.Response:
+    properties:
+      data: {}
+      message:
+        type: string
+    type: object
+host: api.kick.com
+info:
+  contact:
+    email: support@kick.com
+    name: Kick Support
+    url: https://help.kick.com/en/
+  description: Kick Developer Public API
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  title: Kick Dev Public API
+  version: 1.0.0
+paths:
+  /oauth/authorize:
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: |-
+        Authorize endpoint for the OAuth 2.1 flow. OAuth endpoint is https://id.kick.com.
+        The state is a random string that is generated by the client and is used to prevent CSRF attacks
+        In this handler we are required to store all of these parameters that have been parsed and attach them to the request
+        object for use by the oauth2 server.
+
+        Once successful this endpoint will redirect the user to the redirect_uri with the
+        code and state in the query string following this format:
+
+        https://www.redirect-uri.com/callback
+        ?state=G8VdYFIzdbIVhaz8
+        &code=KrPx-1uqXmq6haTWG8I8F1VMutnA6AQANY-fB9aBa-j1nXCH.
+      parameters:
+      - description: code
+        in: formData
+        name: response_type
+        required: true
+        type: string
+      - description: 88STyxwAAtoENitgyo19l000
+        in: formData
+        name: client_id
+        required: true
+        type: string
+      - description: https://www.client-app.com/oauth/callback
+        in: formData
+        name: redirect_uri
+        required: true
+        type: string
+      - description: chat:read channel:read
+        in: formData
+        name: scope
+        required: true
+        type: string
+      - description: random_value
+        in: formData
+        name: state
+        required: true
+        type: string
+      - description: Qn3Kywp0OiU4NK_AFzGPlmrcYJDJ13Abj_jdL08Ahg8%3D
+        in: formData
+        name: code_challenge
+        required: true
+        type: string
+      - description: S256
+        in: formData
+        name: code_challenge_method
+        required: true
+        type: string
+      produces:
+      - application/x-www-form-urlencoded
+      responses:
+        "302":
+          description: Found
+        "400":
+          description: bad or unregistered redirect_uri, or otherwise invalid authorization
+            request
+          schema:
+            $ref: '#/definitions/endpoints.HTTPError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/endpoints.HTTPError'
+      summary: Authorize endpoint
+      tags:
+      - oauth
+  /oauth/revoke:
+    post:
+      consumes:
+      - application/json
+      description: This endpoint will revoke access for a token.
+      parameters:
+      - description: token value
+        in: query
+        name: token
+        required: true
+        type: string
+      - description: access_token, refresh_token
+        in: query
+        name: token_type_hint
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: OAuth Revoke
+      tags:
+      - oauth
+  /oauth/token:
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: |-
+        Token endpoint for the OAuth 2.1 flow. OAuth endpoint is https://id.kick.com.
+        POST https://id.kick.com/oauth/token
+        ?grant_type=authorization_code
+        &client_id=88STyxwAAtoENitgyo19l25v
+        &client_secret=dD0vE4xQNtNubyDwk45UXNFhftyrIrTWpqpAw_ZL71L--A0W
+        &code=KrPx-1uqXmq6haTWG8I8F1VMutnA6AQANY-fB9aBa-j1nXCH
+
+        Or refreshing a token
+
+        POST https://id.kick.com/oauth/token
+        ?grant_type=refresh_token
+        &client_id=88STyxwAAtoENitgyo19l25v
+        &client_secret=dD0vE4xQNtNubyDwk45UXNFhftyrIrTWpqpAw_ZL71L--A0W
+        &redirect_uri=https://www.client-app.com/oauth/callback
+        &refresh_token=KrPx-1uqXmq6haTWG8I8F1VMutnA6AQANY-fB9aBa-j1nXCH
+
+        The response here will be a json object with the access_token, token_type, expires_in, refresh_token, refresh_expires_in, and scope
+
+        {
+        "access_token": "2YotnFZFEjr1zCsicMWpAA",
+        "token_type": "Bearer",
+        "expires_in": 7200,
+        "refresh_token": "tGzv3JOkF0XG5Qx2TlKWIA",
+        "refresh_expires_in": 2592000
+        }
+
+        expires_in is the access token lifetime in seconds; refresh_expires_in is the refresh token lifetime in seconds.
+        The refresh token uses a sliding window, so refresh_expires_in resets on every successful refresh.
+
+        The code parsed here is the code that was generated by the /authorize endpoint redirect
+        The client will need to parse the client_secret in this request to identify they are owner of the client
+        as a result of this we can omit the state parameter as its purpose has been served in the /authorize endpoint
+        The response will be a json object with the access_token, token_type, expires_in, refresh_token, refresh_expires_in, and scope
+
+        This endpoint can also be used to refresh the token, the majority of this flow can be skipped when refreshing, and all that will need to be done is
+        the same request with the grant_type=refresh_token and the refresh_token parameter.
+      parameters:
+      - description: client_credentials,authorization_code,refresh_token
+        in: formData
+        name: grant_type
+        required: true
+        type: string
+      - description: 88STyxwAAtoENitgyo19l000
+        in: formData
+        name: client_id
+        required: true
+        type: string
+      - description: dD0vE4xQNtNubyDwk45UXNFhftyrIrTWpqpAw_ZL71L--A0W
+        in: formData
+        name: client_secret
+        required: true
+        type: string
+      - description: KrPx-1uqXmq6haTWG8I8F1VMutnA6AQANY-fB9aBa-j1nXCH
+        in: formData
+        name: code
+        type: string
+      - description: https://www.client-app.com/oauth/callback
+        in: formData
+        name: redirect_uri
+        type: string
+      - description: KrPx-1uqXmq6haTWG8I8F1VMutnA6AQANY-fB9aBa-j1nXCH
+        in: formData
+        name: refresh_token
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Token endpoint
+      tags:
+      - oauth
+  /oauth/token/introspect:
+    post:
+      description: |-
+        Get information about the token that is passed in via the Authorization header.
+        This function is implements part of the on the OAuth 2.0 spec for token introspection. Find the full spec here: https://datatracker.ietf.org/doc/html/rfc7662
+        When active=false there is no additional information added in the response.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httpx.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/endpoints.PostTokenIntrospectResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.Response'
+      security:
+      - UserAccessToken: []
+      - AppAccessToken: []
+      summary: Token Introspect
+      tags:
+      - oauth
+  /public/v1/ads/ad-break:
+    post:
+      description: Creates an ad break on the authenticated broadcaster's channel.
+      parameters:
+      - description: Request body containing the ad break to create
+        in: body
+        name: ad_break
+        required: true
+        schema:
+          $ref: '#/definitions/endpoints.PostAdBreakBody'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            allOf:
+            - $ref: '#/definitions/httpx.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/endpoints.AdBreak'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/endpoints.AdBreakErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/endpoints.AdBreakErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/endpoints.AdBreakErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.Response'
+      security:
+      - UserAccessToken:
+        - ads:write
+      summary: Create Ad Break
+      tags:
+      - ads
+  /public/v1/ads/ad-break-status:
+    get:
+      description: Gets ad break status for the authenticated broadcaster's channel.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httpx.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/endpoints.AdBreakStatus'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.Response'
+      security:
+      - UserAccessToken:
+        - ads:read
+      - UserAccessToken:
+        - ads:write
+      summary: Get Ad Break Status
+      tags:
+      - ads
+  /public/v1/ads/enroll:
+    post:
+      description: Enrolls the authenticated broadcaster's channel in ads.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/endpoints.AdsEnrollErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/endpoints.AdsEnrollErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.Response'
+      security:
+      - UserAccessToken:
+        - ads:write
+      summary: Enroll in Ads
+      tags:
+      - ads
+  /public/v1/categories:
+    get:
+      deprecated: true
+      description: Get Categories based on the search word. Returns up to 100 results
+        at a time; use the `page` parameter to get more results.
+      parameters:
+      - description: Search query
+        in: query
+        name: q
+        required: true
+        type: string
+      - default: 1
+        description: Page (defaults to 1 if not provided)
+        in: query
+        name: page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httpx.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/endpoints.CategoryResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.Response'
+      security:
+      - UserAccessToken: []
+      - AppAccessToken: []
+      summary: Get Categories
+      tags:
+      - categories
+  /public/v1/categories/{category_id}:
+    get:
+      deprecated: true
+      description: Get Category based on the id.
+      parameters:
+      - description: Category ID
+        format: int64
+        in: path
+        name: category_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httpx.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/endpoints.CategoryDetail'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.Response'
+      security:
+      - UserAccessToken: []
+      - AppAccessToken: []
+      summary: Get Category
+      tags:
+      - categories
+  /public/v1/channels:
+    get:
+      description: |-
+        Retrieve channel information based on provided broadcaster user IDs or channel slugs.
+        You can either:
+        1. Provide no parameters (returns information for the currently authenticated user)
+        2. Provide only broadcaster_user_id parameters (up to 50)
+        3. Provide only slug parameters (up to 50, each max 25 characters)
+        Note: You cannot mix broadcaster_user_id and slug parameters in the same request.
+      parameters:
+      - collectionFormat: multi
+        description: Broadcaster User IDs (cannot be used with slug)
+        in: query
+        items:
+          format: int64
+          type: integer
+        name: broadcaster_user_id
+        type: array
+      - collectionFormat: multi
+        description: Channel slugs (cannot be used with broadcaster_user_id)
+        in: query
+        items:
+          type: string
+        name: slug
+        type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httpx.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/endpoints.GetChannel'
+                  type: array
+              type: object
+        "400":
+          description: Invalid parameters or mixed parameter types
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.Response'
+      security:
+      - UserAccessToken:
+        - channel:read
+      - AppAccessToken: []
+      summary: Get Channels
+      tags:
+      - channels
+    patch:
+      description: Updates livestream metadata for a channel.
+      parameters:
+      - description: at least one must be set
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/endpoints.PatchChannelsParams'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.Response'
+      security:
+      - UserAccessToken:
+        - channel:write
+      summary: Patch Channels
+      tags:
+      - channels
+  /public/v1/channels/rewards:
+    get:
+      description: |-
+        Get channel rewards for a broadcaster's channel.
+        Channels may have up to 50 rewards, including both enabled and disabled rewards.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httpx.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/endpoints.ChannelReward'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.Response'
+      security:
+      - UserAccessToken:
+        - channel:rewards:read
+      - UserAccessToken:
+        - channel:rewards:write
+      summary: Get Channel Rewards
+      tags:
+      - channel-rewards
+    post:
+      description: |-
+        Creates a channel reward in the broadcaster's channel.
+        A maximum of 50 rewards can be created, including both enabled and disabled rewards.
+      parameters:
+      - description: Request body containing the reward to create
+        in: body
+        name: rewards
+        required: true
+        schema:
+          $ref: '#/definitions/endpoints.PostChannelRewardsBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httpx.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/endpoints.ChannelReward'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.Response'
+      security:
+      - UserAccessToken:
+        - channel:rewards:write
+      summary: Create Channel Reward
+      tags:
+      - channel-rewards
+  /public/v1/channels/rewards/{id}:
+    delete:
+      description: |-
+        Deletes a channel reward in the broadcaster's channel.
+        Note that only the app that created the reward can delete it.
+      parameters:
+      - description: Reward ID
+        format: ulid
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.Response'
+      security:
+      - UserAccessToken:
+        - channel:rewards:write
+      summary: Delete Channel Reward
+      tags:
+      - channel-rewards
+    patch:
+      description: |-
+        Updates a channel reward in the broadcaster's channel.
+        Note that only the app that created the reward can update it.
+      parameters:
+      - description: Reward ID
+        format: ulid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Request body containing only the fields to update. There must
+          be at least one field defined.
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/endpoints.PatchChannelRewardsBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httpx.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/endpoints.ChannelReward'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.Response'
+      security:
+      - UserAccessToken:
+        - channel:rewards:write
+      summary: Update Channel Reward
+      tags:
+      - channel-rewards
+  /public/v1/channels/rewards/redemptions:
+    get:
+      description: |
+        Get channel reward redemptions for a broadcaster's channel.
+      parameters:
+      - description: Optionally provide a reward ID to list redemptions for that specific
+          reward.
+        format: ulid
+        in: query
+        name: reward_id
+        type: string
+      - description: Optionally provide a specific status to filter by. Defaults to
+          pending.
+        enum:
+        - pending
+        - accepted
+        - rejected
+        in: query
+        name: status
+        type: string
+      - collectionFormat: multi
+        description: Optionally provide a list of redemption IDs to filter by. You
+          cannot provide any other filters if you filter by redemption IDs.
+        format: ulid
+        in: query
+        items:
+          type: string
+        name: id
+        type: array
+      - description: Optionally provide a cursor to paginate through the results.
+        format: base64
+        in: query
+        name: cursor
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/endpoints.PaginatedResponse-endpoints_RedemptionsByReward'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/endpoints.SwagPaginatedErrResp'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/endpoints.SwagPaginatedErrResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/endpoints.SwagPaginatedErrResp'
+      security:
+      - UserAccessToken:
+        - channel:rewards:read
+      - UserAccessToken:
+        - channel:rewards:write
+      summary: Get Channel Reward Redemptions
+      tags:
+      - channel-rewards
+  /public/v1/channels/rewards/redemptions/accept:
+    post:
+      description: |-
+        Accept channel reward redemptions for a broadcaster's channel.
+        The response will only include data for redemptions that failed to be accepted.
+      parameters:
+      - description: Request body
+        in: body
+        name: ids
+        required: true
+        schema:
+          $ref: '#/definitions/endpoints.AcceptChannelRewardRedemptionsParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httpx.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/endpoints.FailedRedemption'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.Response'
+      security:
+      - UserAccessToken:
+        - channel:rewards:write
+      summary: Accept Channel Reward Redemptions
+      tags:
+      - channel-rewards
+  /public/v1/channels/rewards/redemptions/reject:
+    post:
+      description: |-
+        Reject channel reward redemptions for a broadcaster's channel.
+        The response will only include data for redemptions that failed to be rejected.
+      parameters:
+      - description: Request body
+        in: body
+        name: ids
+        required: true
+        schema:
+          $ref: '#/definitions/endpoints.RejectChannelRewardRedemptionsParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httpx.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/endpoints.FailedRedemption'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.Response'
+      security:
+      - UserAccessToken:
+        - channel:rewards:write
+      summary: Reject Channel Reward Redemptions
+      tags:
+      - channel-rewards
+  /public/v1/chat:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Post a chat message to a channel as a user or a bot.
+        When sending as a user, the broadcaster_user_id is required. Whereas when sending as a bot, the broadcaster_user_id is not required and is ignored. As a bot, the message will always be sent to the channel attached to your token.
+        The `content` limit is 500 characters, counted as user-perceived characters (grapheme clusters) rather than Unicode code points, so combining marks do not count separately. It must also encode to no more than 2048 bytes in UTF-8.
+      parameters:
+      - description: Chat message parameters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/endpoints.PostChatParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httpx.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/endpoints.ChatResp'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/endpoints.ErrorResponse'
+      security:
+      - UserAccessToken:
+        - chat:write
+      summary: Post Chat Message
+      tags:
+      - chat
+  /public/v1/chat/{message_id}:
+    delete:
+      description: Delete a chat message from a channel.
+      parameters:
+      - description: Message ID
+        in: path
+        name: message_id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.Response'
+      security:
+      - UserAccessToken:
+        - moderation:chat_message:manage
+      summary: Delete Chat Message
+      tags:
+      - chat
+  /public/v1/events/subscriptions:
+    delete:
+      description: Delete events subscriptions
+      parameters:
+      - collectionFormat: multi
+        description: Event subscription IDs
+        in: query
+        items:
+          type: string
+        name: id
+        required: true
+        type: array
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.Response'
+      security:
+      - UserAccessToken:
+        - events:subscribe
+      - AppAccessToken: []
+      summary: Delete Events Subscriptions
+      tags:
+      - events
+      - subscriptions
+    get:
+      description: Get events subscriptions
+      parameters:
+      - description: Broadcaster User ID to filter by
+        format: int64
+        in: query
+        name: broadcaster_user_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httpx.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/endpoints.GetEventSubscription'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/endpoints.ErrorResponse'
+      security:
+      - UserAccessToken: []
+      - AppAccessToken: []
+      summary: Get Events Subscriptions
+      tags:
+      - events
+      - subscriptions
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Subscribe to events via webhooks.
+        There is a subscription limit of 10,000 per event type for a single app.
+        For the "chat.message.sent" event, there is a limit of 1,000 for unverified apps.
+      parameters:
+      - description: Events subscriptions
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/endpoints.PostEventsSubscriptionsParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httpx.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/endpoints.PostEventSubscription'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.Response'
+      security:
+      - UserAccessToken:
+        - events:subscribe
+      - AppAccessToken: []
+      summary: Post Events Subscriptions
+      tags:
+      - events
+      - subscriptions
+  /public/v1/kicks/leaderboard:
+    get:
+      description: Gets the KICKs leaderboard for the authenticated broadcaster.
+      parameters:
+      - default: 10
+        description: The number of entries from the top of the leaderboard to return.
+          For example, 10 will fetch the top 10 entries.
+        in: query
+        maximum: 100
+        minimum: 1
+        name: top
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httpx.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/endpoints.KicksLeaderboard'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.Response'
+      security:
+      - UserAccessToken:
+        - kicks:read
+      summary: Get KICKs Leaderboard
+      tags:
+      - kicks
+  /public/v1/livestreams:
+    get:
+      deprecated: true
+      description: Get Livestreams based on broadcaster_user_id, category_id, language,
+        limit, and sort.
+      parameters:
+      - collectionFormat: multi
+        description: Broadcaster User IDs (up to 50)
+        in: query
+        items:
+          format: int64
+          type: integer
+        name: broadcaster_user_id
+        type: array
+      - description: Category ID
+        format: int64
+        in: query
+        name: category_id
+        type: integer
+      - description: Language of the livestream
+        in: query
+        name: language
+        type: string
+      - default: 25
+        description: Limit the number of results
+        format: int64
+        in: query
+        maximum: 100
+        minimum: 1
+        name: limit
+        type: integer
+      - default: viewer_count
+        description: Sort by viewer_count or started_at
+        enum:
+        - viewer_count
+        - started_at
+        in: query
+        name: sort
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httpx.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/endpoints.LivestreamWithCategory'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.Response'
+      security:
+      - UserAccessToken: []
+      - AppAccessToken: []
+      summary: Get Livestreams
+      tags:
+      - livestreams
+  /public/v1/livestreams/stats:
+    get:
+      description: Get Livestreams Stats.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httpx.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/endpoints.LivestreamStats'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.Response'
+      security:
+      - UserAccessToken: []
+      - AppAccessToken: []
+      summary: Get Livestreams Stats
+      tags:
+      - livestreams
+  /public/v1/moderation/bans:
+    delete:
+      consumes:
+      - application/json
+      description: Unban or remove timeout that was placed on the specific user.
+      parameters:
+      - description: Delete Moderation bans parameters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/endpoints.DeleteModerationBansParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httpx.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/endpoints.DeleteModerationBansResp'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.Response'
+      security:
+      - UserAccessToken:
+        - moderation:ban
+      summary: Delete Moderation Bans
+      tags:
+      - moderation
+    post:
+      consumes:
+      - application/json
+      description: Ban or timeout a user from participating in a broadcaster's chat
+        room.
+      parameters:
+      - description: Post Moderation bans parameters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/endpoints.PostModerationBansParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httpx.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/endpoints.PostModerationBansResp'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.Response'
+      security:
+      - UserAccessToken:
+        - moderation:ban
+      summary: Post Moderation Bans
+      tags:
+      - moderation
+  /public/v1/public-key:
+    get:
+      description: Retrieve the public key used for verifying signatures.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/endpoints.GetPublicKeyResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.Response'
+      summary: Get Public Key
+      tags:
+      - PublicKey
+  /public/v1/token/introspect:
+    post:
+      deprecated: true
+      description: |-
+        Get information about the token that is passed in via the Authorization header.
+        This function is implements part of the on the OAuth 2.0 spec for token introspection. Find the full spec here: https://datatracker.ietf.org/doc/html/rfc7662
+        When active=false there is no additional information added in the response.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httpx.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/endpoints.PostTokenIntrospectResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.Response'
+      security:
+      - UserAccessToken: []
+      - AppAccessToken: []
+      summary: Token Introspect
+      tags:
+      - users
+  /public/v1/users:
+    get:
+      description: |-
+        Retrieve user information based on provided user IDs.
+        If no user IDs are specified, the information for the currently authorised user will be returned by default.
+      parameters:
+      - collectionFormat: multi
+        description: User IDs
+        in: query
+        items:
+          format: int64
+          type: integer
+        name: id
+        type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httpx.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/endpoints.GetUser'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.Response'
+      security:
+      - UserAccessToken:
+        - user:read
+      - AppAccessToken: []
+      summary: Get Users
+      tags:
+      - users
+  /public/v1/users/livestreams:
+    get:
+      description: Gets the active livestreams for the given user IDs.
+      parameters:
+      - collectionFormat: multi
+        description: Broadcaster User IDs. A maximum of 100 user IDs can be provided.
+        in: query
+        items:
+          format: int64
+          type: integer
+        name: user_id
+        required: true
+        type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httpx.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/endpoints.LivestreamV2'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.Response'
+      security:
+      - UserAccessToken: []
+      - AppAccessToken: []
+      summary: Get Livestreams for Users
+      tags:
+      - livestreams
+  /public/v2/categories:
+    get:
+      description: Get Categories based on the cursor, limit, names, and tags; or
+        ids.
+      parameters:
+      - description: Pagination cursor
+        in: query
+        maxLength: 28
+        minLength: 4
+        name: cursor
+        type: string
+      - default: 25
+        description: Limit
+        in: query
+        maximum: 1000
+        minimum: 1
+        name: limit
+        type: integer
+      - collectionFormat: csv
+        description: Category names
+        in: query
+        items:
+          type: string
+        maxLength: 100
+        minLength: 3
+        name: name
+        type: array
+      - collectionFormat: csv
+        description: Category tags
+        in: query
+        items:
+          type: string
+        maxLength: 100
+        minLength: 3
+        name: tag
+        type: array
+      - collectionFormat: csv
+        description: Category IDs
+        in: query
+        items:
+          format: int64
+          type: integer
+        minimum: 1
+        name: id
+        type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/endpoints.PaginatedResponse-endpoints_CategoryWithTags'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/endpoints.SwagPaginatedErrResp'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/endpoints.SwagPaginatedErrResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/endpoints.SwagPaginatedErrResp'
+      security:
+      - UserAccessToken: []
+      - AppAccessToken: []
+      summary: Get Categories
+      tags:
+      - categories
+  /public/v2/livestreams:
+    get:
+      description: |-
+        Get active livestreams. Supports cursor pagination.
+        Livestreams are sorted from oldest to newest.
+      parameters:
+      - collectionFormat: multi
+        description: Filter for livestreams in a specific category. A maximum of 25
+          category IDs can be provided.
+        in: query
+        items:
+          format: int64
+          type: integer
+        name: category_id
+        type: array
+      - collectionFormat: multi
+        description: Filter for livestreams in a specific language. Language code
+          must be a valid BCP 47 language tag. A maximum of 25 languages can be provided.
+        in: query
+        items:
+          type: string
+        name: language_code
+        type: array
+      - default: 100
+        description: Limit the number of results per page
+        format: int32
+        in: query
+        maximum: 1000
+        minimum: 1
+        name: limit
+        type: integer
+      - description: Pagination cursor
+        in: query
+        name: cursor
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/endpoints.PaginatedResponse-endpoints_LivestreamV2'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/endpoints.SwagPaginatedErrResp'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/endpoints.SwagPaginatedErrResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/endpoints.SwagPaginatedErrResp'
+      security:
+      - UserAccessToken: []
+      - AppAccessToken: []
+      summary: Get Livestreams
+      tags:
+      - livestreams
+schemes:
+- https
+securityDefinitions:
+  AppAccessToken:
+    description: App Access Token for the KICK Developer Public API. Uses the OAuth
+      2.0 Client Credentials Grant Flow.
+    flow: application
+    tokenUrl: https://id.kick.com/oauth/token
+    type: oauth2
+  UserAccessToken:
+    authorizationUrl: https://id.kick.com/oauth/authorize
+    description: User Access Token for the KICK Developer Public API. Uses the OAuth
+      2.0 Authorization Code Grant Flow (with PKCE).
+    flow: accessCode
+    scopes:
+      ads:read: View ads settings and ad breaks for a channel
+      ads:write: Manage ads settings and ad breaks for a channel
+      channel:read: View channel information in Kick including channel description,
+        category, etc.
+      channel:rewards:read: Read Channel points rewards information on a channel
+      channel:rewards:write: Read, add, edit and delete Channel points rewards on
+        a channel
+      channel:write: Update livestream metadata for a channel based on the channel
+        ID
+      chat:write: Send chat messages and allow chat bots to post in your chat
+      events:subscribe: Subscribe to all channel events on Kick e.g. chat messages,
+        follows, subscriptions
+      kicks:read: View KICKs related information in Kick e.g leaderboards, etc.
+      moderation:ban: Execute moderation actions for moderators
+      moderation:chat_message:manage: Execute moderation actions on chat messages
+      streamkey:read: Read a user's stream URL and stream key
+      user:read: View user information in Kick including username, streamer ID, etc.
+    tokenUrl: https://id.kick.com/oauth/token
+    type: oauth2
+swagger: "2.0"

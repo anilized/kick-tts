@@ -1,0 +1,11 @@
+[project]
+name = "kick-tts"
+version = "0.1.0"
+description = "Turkish TTS for Kick streams: Kick webhooks -> LLM reader -> EMA Lightning -> OBS overlay"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-q"
