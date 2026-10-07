@@ -39,7 +39,7 @@ ready-to-paste `/speak` examples, then starts uvicorn on `127.0.0.1:8000` with o
 
 Open `http://127.0.0.1:8000/overlay?key=<OVERLAY_KEY>` in a browser or add it as an OBS browser source
 (1920x1080, transparent background). In OBS enable **Control audio via OBS** on the source so the TTS
-gets its own audio track.
+gets its own audio track. The full OBS checklist is in [OBS overlay setup](#obs-overlay-setup).
 
 **Browser audio unlock:** a normal browser blocks autoplaying audio until the page received one user
 gesture. Click once anywhere on the overlay tab after opening it; OBS browser sources do not need this.
@@ -115,28 +115,160 @@ python -m pytest -q
 
 Runs offline: no network, no API key, no model weights. The webhook tests sign with a locally generated
 RSA key; the service tests use the fake engine and reader through `create_app` plus `TestClient`.
+`tests/test_repo_hygiene.py` scans every git-tracked file for credential-looking strings and checks
+that `.env`, `weights/` and `*.pt` stay ignored. The evidence pack from the last integration run is in
+`docs/VERIFICATION.md`.
 
 ## Reader
 
-<!-- TASK-102 (reader): rules cleaner, pronounce.yaml, AnthropicReader, compare_reader.py -->
-_Section provided by the reader workstream._
+The reader turns a raw chat message into one line of speakable Turkish before it reaches the engine.
+Two implementations share the `Reader` protocol (`app/interfaces.py`):
+
+- **`RulesReader`** (`app/reader/rules.py`) is the port of `docs/chatclean.py`: emoji removed, Kick
+  `[emote:ID:NAME]` tags read by their name, URLs become "link", `@user_name.tv` becomes "user name teve",
+  smileys dropped, stretched letters and laughter capped (`çooooook` → `çook`, `ahahahahaha` → `ahahaha`),
+  Turkish lowercasing (`I` → `ı`, `İ` → `i`), chat abbreviations expanded, and gamer acronyms respelled
+  the way Turkish chat says them (`GG WP` → `gege vepe`, `KEKW` → `kekve`, `xd` → `iksde`). Swearing is
+  kept as written. It is the reader whenever `ANTHROPIC_API_KEY` is unset.
+- **`AnthropicReader`** (`app/reader/llm.py`) asks `READER_MODEL` (default `claude-haiku-4-5-20251001`)
+  with a 1.5 s timeout (`READER_TIMEOUT_S`) and no retries. The chat message is passed as data in the user
+  turn, never as instructions, so "ignore previous instructions" is simply read aloud. Whatever the model
+  returns goes through code-level guards: first non-empty line only, emoji stripped, Turkish lowercase,
+  repetition caps, `MAX_TEXT_CHARS` cap, and a plausibility check (rejected when empty or longer than
+  `max(2 × input, input + 40)`). A timeout, API error or rejected output falls back to `RulesReader`
+  and increments `tts_reader_fallback_total{reason}`. Successful answers are cached in an LRU of
+  `READER_CACHE_SIZE` entries keyed on `(user, message)`.
+
+Emoji are also stripped in code before the reader (an only-emoji message produces no item at all) and
+again by the worker after it, so no emoji ever reaches the engine.
+
+### Tuning pronunciation (`app/reader/pronounce.yaml`)
+
+All tables live in `app/reader/pronounce.yaml`; there are no table literals in Python. Edit the file
+to change how chat is read:
+
+| Table | What it does | Example |
+|---|---|---|
+| `slang` | whole-word expansion of Turkish chat abbreviations; multi-word keys allowed, the longest key wins | `"slm": "selam"`, `"iyi yyn": "iyi yayınlar"` |
+| `say_as` | whole-token overrides that beat the automatic letter rules | `"aq": "a kü"`, `"omg": "o em ge"` |
+| `letter` | Turkish letter names for tokens that cannot form a syllable | `"g": "ge"` so `gg` → `gege` |
+| `foreign` | `w`/`q`/`x` next to a vowel | `kekw` → `kekve`, `wow` → `vov` |
+| `vowels`, `limits` | which letters count as vowels; `max_token` (20) and `max_repeats` (3) | |
+
+Rules of thumb: keys are matched after Turkish lowercasing, so write them in lower case; quote every
+key and value (bare `y`, `n`, `on`, `off` turn into booleans in YAML); never add replacements for swear
+words. The file is read once at startup. Locally restart `dev_run.py`; in the cluster it is mounted from
+the `kick-tts-pronounce` ConfigMap, so re-create the ConfigMap and restart the pod (see `docs/DEPLOY.md`,
+"Update pronounce.yaml"). `PRONOUNCE_PATH` overrides the file location.
+
+Check the effect offline, without weights or network:
+
+```
+python scripts/compare_reader.py tests/data/chat_samples.txt
+```
+
+It prints a table `input | rules | llm | frontend`. `llm` is `-` unless `ANTHROPIC_API_KEY` is set
+(then it calls the API, one request per line). `frontend` is what the EMA text frontend would hand to the
+model (`normalizer_tr` number and date expansion plus Turkish lowercasing, e.g. `100 lira` → `yüz lira`),
+so you can see where the rules and the model's own normaliser disagree. Add your own lines to
+`tests/data/chat_samples.txt` or pass another file; `tests/test_reader.py` pins the expected output for
+the brief's table of cases.
 
 ## Engine and weights
 
-<!-- TASK-103 (engine): EmaEngine, thread caps, scripts/fetch_weights.py and the weights lock -->
-_Section provided by the engine workstream._
+`EmaEngine` (`app/engine/ema.py`) runs EMA Lightning 1.0.1 on CPU, built from local files only:
+
+- It sets `OMP_NUM_THREADS` and `MKL_NUM_THREADS` to `TORCH_NUM_THREADS` (default 2) and `HF_HUB_OFFLINE=1`
+  *before* torch is imported, then calls `torch.set_num_threads`. The env vars matter because
+  ema_lightning infers on its own `ema-playhead` thread. Nothing in `app/main.py` imports torch; it is
+  imported lazily inside the engine constructor only.
+- Weights (`ema.pt`, `decoder.pt`, `config.json`) are loaded from `EMA_WEIGHTS_DIR` (default
+  `/opt/weights`) through `load_acoustic`, `load_decoder`, `Frontend` and `EMA._from_parts`, so the
+  runtime never calls `hf_hub_download`. Missing files raise `WeightsNotFoundError` at startup instead
+  of silently falling back to the fake engine.
+- `EMA_BATCH_SIZE` (default 1) is assigned to the model's `_batch_size` before warm-up, which skips the
+  ~21 s CPU batch-size probe. The probe cache (`XDG_CACHE_HOME`) is still mounted on a PVC in k3s.
+- Warm-up synthesizes one short sentence on the shared one-thread executor as a background task after
+  the server is listening; `/readyz` turns 200 when it finishes.
+- `FAKE_ENGINE=1` (or an environment where `ema_lightning`/torch cannot be imported) selects
+  `FakeEngine`, a 0.6 s 440 Hz sine WAV, with a loud log line.
+
+### Weights pinning
+
+The image never pulls "latest". `scripts/fetch_weights.py` downloads the three files from
+`canberkkkkkk/ema-lightning` at one Hugging Face commit and verifies their sha256 against
+`weights.lock.json` (`{"revision": "<sha>", "files": {"ema.pt": "<sha256>", ...}}`):
+
+```
+python scripts/fetch_weights.py --revision <sha> --out weights --write-lock   # one-time, needs network
+python scripts/fetch_weights.py --revision <sha> --out weights                # verify (what the Dockerfile runs)
+```
+
+Exit codes: 0 ok, 1 sha256 mismatch or missing file, 2 placeholder lock without `--write-lock` or a
+`--revision` that differs from the lock. The committed lock still holds the
+`PLACEHOLDER_RUN_FETCH_WEIGHTS_WITH_WRITE_LOCK` marker because the lock could not be generated
+offline; the Dockerfile refuses to build until the real lock is committed (step 1 of `docs/DEPLOY.md`).
+`weights/` and `*.pt` are git-ignored. The Dockerfile installs `torch==2.14.1` from the PyTorch CPU
+index and everything else from the `==` pins in `requirements.txt`; `tests/test_requirements_pins.py`
+keeps those pins equal to the dev venv.
 
 ## Overlay
 
-<!-- TASK-107 (overlay): app/static/overlay.html details, OBS setup -->
-_Section provided by the overlay workstream._
+`app/static/overlay.html` is one self-contained file (no CDNs, no absolute URLs) with a transparent body
+and a bottom-anchored 48 px caption that is visible only while an item plays. It builds the WebSocket URL
+as `new URL('ws' + location.search, location.href)` (http → ws, https → wss), so it works both at
+`http://127.0.0.1:8000/overlay?key=…` and behind the `/tts` ingress rewrite. Items are queued locally and
+played one at a time through an `<audio>` element from a `data:audio/wav;base64,…` source; every item is
+acked once with `{type: "played", id}` on end, error, skip or clear. `skip` stops the current audio,
+`clear` also drops the local buffer, `paused` is shown in the debug bar only, and `ping` is answered with
+`pong`. The socket reconnects with 1 → 2 → 4 → 8 → 10 s backoff; on reconnect the local buffer is dropped.
+Append `&debug=1` to the URL to show the connection status. A rejected `play()` (autoplay policy) shows a
+"click to enable audio" hint; one click retries.
+
+### OBS overlay setup
+
+1. In OBS add a **Browser** source.
+2. URL: `https://anildev.io/tts/overlay?key=<OVERLAY_KEY>` (add `&debug=1` to show connection status).
+3. Width **1920**, height **1080**. The background is transparent, so leave the custom CSS empty.
+4. Enable **Control audio via OBS**, so the TTS audio gets its own track in the Audio Mixer.
+5. Turn **off** "Shutdown source when not visible". Leave "Refresh browser when scene becomes active" off too, so the WebSocket stays connected.
+6. In a normal browser tab (for testing), Chrome blocks audio until the page gets a user gesture. Click once anywhere on the page, or on the "click to enable audio" hint, to unlock audio. OBS does not need this.
 
 ## Deployment
 
-<!-- TASK-108 (deploy): see docs/DEPLOY.md -->
-_See `docs/DEPLOY.md`._
+The service runs as one pod in the `streaming` namespace of the existing k3s cluster behind
+ingress-nginx at `https://anildev.io/tts/` (path `/tts(/|$)(.*)`, rewrite to `/$2`, TLS secret
+`anildev-tls`). The image is built on the VPS and imported into k3s; there is no registry:
+
+```
+docker build --build-arg EMA_REVISION=<sha> -t kick-tts:<tag> .
+docker save kick-tts:<tag> | sudo k3s ctr images import -
+kubectl apply -n streaming -f deploy/<file>.yaml   # pvc, configmap, secret, deployment, service, ingress, servicemonitor, cronjob
+```
+
+`deploy/` holds the namespace-less manifests: a single-replica `Recreate` Deployment (requests
+500m / 1Gi, limits 1500m / 2Gi, non-root, thread caps, `HF_HUB_OFFLINE=1`, PVC at `/cache`, startup probe on
+`/readyz` with a 5 min budget, liveness on `/healthz`), Service, Ingress, PVC, ServiceMonitor, a 6-hourly
+CronJob that re-ensures the Kick subscriptions, and `secret.example.yaml` as the template for
+`kick-tts-secrets`. **`docs/DEPLOY.md`** has the full procedure: generating the weights lock, the exact
+build and apply order, the ServiceMonitor selector discovery command, the note that `/readyz` is 503 for
+the first ~30 s by design, certificate and Grafana checks, memory tuning, pronounce.yaml updates, image
+rollout and rollback.
 
 ## Kick setup
 
-<!-- TASK-109 (kick script): see docs/KICK_SETUP.md -->
-_See `docs/KICK_SETUP.md`._
+Events reach the service as webhooks from Kick's official API. One-time steps, all in
+**`docs/KICK_SETUP.md`**: create the Kick developer app (2FA required), enable webhooks in the portal and
+set the webhook URL to `https://anildev.io/tts/webhook/kick`, put `KICK_CLIENT_ID` / `KICK_CLIENT_SECRET`
+into the secret, then subscribe the channel:
+
+```
+python scripts/kick_subscribe.py ensure     # also: token | resolve | list | delete <id>
+```
+
+`ensure` fetches an app token (`client_credentials`), resolves the `anildev` slug to a
+`broadcaster_user_id`, and creates only the missing subscriptions for `chat.message.sent`,
+`kicks.gifted` and `channel.reward.redemption.updated` (webhook, version 1). Kick silently
+unsubscribes an app after a day of failed deliveries, which is why the webhook answers 200 right after
+enqueueing and why the `kick-tts-subscribe` CronJob runs `ensure` every 6 hours. The script never prints
+the secret or the token.
