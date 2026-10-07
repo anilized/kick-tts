@@ -236,24 +236,22 @@ Append `&debug=1` to the URL to show the connection status. A rejected `play()` 
 
 ## Deployment
 
-The service runs as one pod in the `streaming` namespace of the existing k3s cluster behind
-ingress-nginx at `https://anildev.io/tts/` (path `/tts(/|$)(.*)`, rewrite to `/$2`, TLS secret
-`anildev-tls`). The image is built on the VPS and imported into k3s; there is no registry:
+Push to `main` and `.github/workflows/deploy.yaml` does the rest, the same pipeline as `anildev-home-page`:
+GitHub Actions builds the image (weights revision read from `weights.lock.json`), pushes it to
+`ghcr.io/<owner>/kick-tts:<git sha>`, then applies `deploy/*.yaml` to the `streaming` namespace of the
+existing k3s cluster with `kubectl` (`KUBECONFIG_SECRET` repo secret) and waits for the rollout. The
+service sits behind ingress-nginx at `https://anildev.io/tts/` (path `/tts(/|$)(.*)`, rewrite to `/$2`,
+TLS secret `anildev-tls`).
 
-```
-docker build --build-arg EMA_REVISION=<sha> -t kick-tts:<tag> .
-docker save kick-tts:<tag> | sudo k3s ctr images import -
-kubectl apply -n streaming -f deploy/<file>.yaml   # pvc, configmap, secret, deployment, service, ingress, servicemonitor, cronjob
-```
-
-`deploy/` holds the namespace-less manifests: a single-replica `Recreate` Deployment (requests
+`deploy/` holds the namespace-less manifests: Namespace, a single-replica `Recreate` Deployment (requests
 500m / 1Gi, limits 1500m / 2Gi, non-root, thread caps, `HF_HUB_OFFLINE=1`, PVC at `/cache`, startup probe on
 `/readyz` with a 5 min budget, liveness on `/healthz`), Service, Ingress, PVC, ServiceMonitor, a 6-hourly
 CronJob that re-ensures the Kick subscriptions, and `secret.example.yaml` as the template for
-`kick-tts-secrets`. **`docs/DEPLOY.md`** has the full procedure: generating the weights lock, the exact
-build and apply order, the ServiceMonitor selector discovery command, the note that `/readyz` is 503 for
-the first ~30 s by design, certificate and Grafana checks, memory tuning, pronounce.yaml updates, image
-rollout and rollback.
+`kick-tts-secrets`. The app secret is created once by hand and never touched by CI. **`docs/DEPLOY.md`**
+has the full procedure: generating the weights lock, the one-time `KUBECONFIG_SECRET` and app-secret setup,
+the manual build-and-apply fallback, the ServiceMonitor selector discovery command, the note that
+`/readyz` is 503 for the first ~30 s by design, certificate and Grafana checks, memory tuning,
+pronounce.yaml updates, rollout and rollback.
 
 ## Kick setup
 

@@ -17,6 +17,8 @@ spec:
         app: kick-tts
     spec:
       terminationGracePeriodSeconds: 30
+      imagePullSecrets:
+        - name: ghcr-pull-secret
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -24,8 +26,8 @@ spec:
         fsGroup: 1000
       containers:
         - name: kick-tts
-          # Local image imported with `docker save | k3s ctr images import -`; bump the tag per build.
-          image: kick-tts:0.1.0
+          # Replaced by the deploy workflow with ghcr.io/<owner>/kick-tts:<git sha> (see .github/workflows/deploy.yaml).
+          image: ghcr.io/GITHUB_OWNER/kick-tts:IMAGE_TAG
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

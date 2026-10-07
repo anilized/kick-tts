@@ -5,9 +5,11 @@ Everything that imports torch runs in a subprocess so this process never has tor
 """
 from __future__ import annotations
 
+
 import importlib.util
 import json
 import os
+import re
 import subprocess
 import sys
 import textwrap
@@ -95,15 +97,21 @@ def test_load_lock_rejects_bad_schema(tmp_path):
         fw.load_lock(bad)
 
 
-def test_committed_lock_is_a_placeholder_and_detected_as_invalid():
+def test_committed_lock_is_a_real_pin():
+    # The deploy workflow builds from this revision; a placeholder here would fail every build.
     lock = fw.load_lock(ROOT / "weights.lock.json")
     assert set(lock["files"]) == set(fw.FILES)
-    assert fw.is_placeholder(lock)
+    assert not fw.is_placeholder(lock)
+    assert re.fullmatch(r"[0-9a-f]{40}", lock["revision"]), "revision must be a full HF commit sha"
+    for name, digest in lock["files"].items():
+        assert re.fullmatch(r"[0-9a-f]{64}", digest), f"{name}: not a sha256"
 
 
 def test_main_refuses_placeholder_lock_without_downloading(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(fw, "download", lambda *a, **k: pytest.fail("must not download"))
-    rc = fw.main(["--revision", "d" * 40, "--out", str(tmp_path), "--lock", str(ROOT / "weights.lock.json")])
+    lock_path = tmp_path / "weights.lock.json"
+    lock_path.write_text(json.dumps({"revision": fw.PLACEHOLDER, "files": {n: fw.PLACEHOLDER for n in fw.FILES}}), encoding="utf-8")
+    rc = fw.main(["--revision", "d" * 40, "--out", str(tmp_path / "out"), "--lock", str(lock_path)])
     assert rc != 0 and "placeholder" in capsys.readouterr().err
 
 

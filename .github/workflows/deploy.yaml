@@ -1,0 +1,131 @@
+# Same pattern as anildev-home-page: build on GitHub, push to GHCR, deploy to k3s with kubectl.
+#
+# One-time setup (see docs/DEPLOY.md):
+#   - repo secret KUBECONFIG_SECRET: the kubeconfig that reaches the k3s cluster
+#   - the kick-tts-secrets Secret in namespace `streaming` (deploy/secret.example.yaml), created by hand
+#   - optional: replace `release: CHANGE_ME` in deploy/servicemonitor.yaml; it is skipped while unset
+name: Build, Push, and Deploy to k3s
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/kick-tts
+  NAMESPACE: streaming
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.sha_tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set image tags and weights revision
+        id: meta
+        run: |
+          SHA_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          LATEST_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+          echo "sha_tag=$SHA_TAG" >> $GITHUB_OUTPUT
+          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          # The Dockerfile downloads and sha256-verifies the EMA weights at this revision.
+          EMA_REVISION=$(jq -r .revision weights.lock.json)
+          if [ -z "$EMA_REVISION" ] || echo "$EMA_REVISION" | grep -q PLACEHOLDER; then
+            echo "weights.lock.json still holds the placeholder; run scripts/fetch_weights.py --write-lock first" >&2
+            exit 1
+          fi
+          echo "ema_revision=$EMA_REVISION" >> $GITHUB_OUTPUT
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.sha_tag }}
+            ${{ steps.meta.outputs.latest_tag }}
+          build-args: |
+            EMA_REVISION=${{ steps.meta.outputs.ema_revision }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.32.0'
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG_SECRET }}" > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Namespace
+        run: kubectl apply -f deploy/namespace.yaml
+
+      - name: Refresh imagePullSecret
+        run: |
+          kubectl create secret docker-registry ghcr-pull-secret \
+            --namespace=${{ env.NAMESPACE }} \
+            --docker-server=ghcr.io \
+            --docker-username=${{ github.actor }} \
+            --docker-password=${{ secrets.GITHUB_TOKEN }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Check app secret exists
+        run: |
+          if ! kubectl get secret kick-tts-secrets -n ${{ env.NAMESPACE }} >/dev/null 2>&1; then
+            echo "::error::Secret kick-tts-secrets is missing in namespace ${{ env.NAMESPACE }}. Create it once from deploy/secret.example.yaml (docs/DEPLOY.md step 3)."
+            exit 1
+          fi
+
+      - name: Pronunciation ConfigMap
+        run: |
+          kubectl create configmap kick-tts-pronounce \
+            --from-file=pronounce.yaml=app/reader/pronounce.yaml \
+            -n ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Apply manifests
+        run: |
+          IMAGE="${{ needs.build-and-push.outputs.image_tag }}"
+          kubectl apply -n ${{ env.NAMESPACE }} -f deploy/pvc.yaml
+          sed "s|ghcr.io/GITHUB_OWNER/kick-tts:IMAGE_TAG|$IMAGE|g" deploy/deployment.yaml | kubectl apply -n ${{ env.NAMESPACE }} -f -
+          sed "s|ghcr.io/GITHUB_OWNER/kick-tts:IMAGE_TAG|$IMAGE|g" deploy/cronjob.yaml    | kubectl apply -n ${{ env.NAMESPACE }} -f -
+          kubectl apply -n ${{ env.NAMESPACE }} -f deploy/service.yaml
+          kubectl apply -n ${{ env.NAMESPACE }} -f deploy/ingress.yaml
+          if grep -q 'release: CHANGE_ME' deploy/servicemonitor.yaml; then
+            echo "deploy/servicemonitor.yaml still has release: CHANGE_ME, skipping ServiceMonitor"
+          else
+            kubectl apply -n ${{ env.NAMESPACE }} -f deploy/servicemonitor.yaml
+          fi
+
+      - name: Wait for rollout
+        # Recreate strategy + model warm-up: the new pod needs up to ~5 min before /readyz is 200.
+        run: kubectl rollout status deployment/kick-tts -n ${{ env.NAMESPACE }} --timeout=420s
+
+      - name: Verify
+        run: |
+          kubectl get pods -n ${{ env.NAMESPACE }} -l app=kick-tts
+          kubectl get ingress -n ${{ env.NAMESPACE }} kick-tts
+          kubectl get deploy/kick-tts cronjob/kick-tts-subscribe -n ${{ env.NAMESPACE }} -o jsonpath='{range .items[*]}{.kind}{" "}{..image}{"\n"}{end}'
+          curl -fsS --retry 5 --retry-delay 5 https://anildev.io/tts/healthz
+          curl -fsS https://anildev.io/tts/readyz

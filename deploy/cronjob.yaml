@@ -21,6 +21,8 @@ spec:
             app: kick-tts-subscribe
         spec:
           restartPolicy: Never
+          imagePullSecrets:
+            - name: ghcr-pull-secret
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
@@ -28,7 +30,7 @@ spec:
             fsGroup: 1000
           containers:
             - name: ensure
-              image: kick-tts:0.1.0
+              image: ghcr.io/GITHUB_OWNER/kick-tts:IMAGE_TAG   # replaced by the deploy workflow
               imagePullPolicy: IfNotPresent
               command: ["python", "scripts/kick_subscribe.py", "ensure"]
               envFrom:

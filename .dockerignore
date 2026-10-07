@@ -11,3 +11,4 @@ weights/
 deploy/
 *.pt
 *.safetensors
+.github/

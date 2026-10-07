@@ -2,11 +2,16 @@
 
 kick-tts runs as one pod in namespace `streaming`, behind the existing ingress-nginx at
 `https://anildev.io/tts/` (the ingress strips `/tts`, so the app itself serves `/healthz`, `/ws`, ...).
-You run every command below yourself; nothing here is automated. `kubectl` runs from your Windows PC,
-`docker` and `k3s` run on the VPS.
 
-Manifests live in `deploy/` and are namespace-less, so always pass `-n streaming`.
+**Normal path: push to `main`.** `.github/workflows/deploy.yaml` is the same pipeline as
+`anildev-home-page`: GitHub Actions builds the image, pushes it to `ghcr.io/<owner>/kick-tts:<git sha>`
+(plus `:latest`), then uses `kubectl` with the `KUBECONFIG_SECRET` repo secret to apply `deploy/*.yaml`
+and waits for the rollout. Sections 1 to 3 are one-time setup; section 4 is the manual fallback that does
+the same thing by hand; sections 5 and 6 are checks and day-2 operations.
 
+Manifests live in `deploy/` and are namespace-less, so always pass `-n streaming` when applying by hand.
+
+## 0. Pinned versions
 ## 0. Pinned versions
 
 | Component | Version | Where it is pinned |
@@ -27,14 +32,16 @@ Manifests live in `deploy/` and are namespace-less, so always pass `-n streaming
 1. Change the dev venv (`pip install -U <pkg>`; for torch use the CPU index).
 2. Run `python -m pytest -q` in that venv.
 3. Update the pins: `requirements.txt` (and `ARG TORCH_VERSION` in the `Dockerfile` for torch).
-4. Rebuild the image with a **new tag** (step 2 below) and roll it out (step 5). Keep the previous tag for rollback.
+4. Push to `main`: the workflow builds a new image tagged with the commit sha and rolls it out. Every
+   image stays in GHCR, so the previous sha is always available for rollback (section 6).
 
-For new weights: pick the new commit sha, regenerate the lock (step 1), commit, rebuild.
+For new weights: pick the new commit sha, regenerate the lock (section 1), commit, push.
 
 ## 1. One-time: generate the weights lock
 
-The repo ships `weights.lock.json` with a placeholder; the Dockerfile refuses to build with the placeholder.
-On a machine with network access (your PC is fine, the venv needs `huggingface-hub`):
+The Dockerfile refuses to build while `weights.lock.json` holds the placeholder, and the workflow reads the
+revision to build from that file (`jq -r .revision weights.lock.json`), so the lock is the single source of
+truth for which weights ship. On a machine with network access (your PC is fine, the venv needs `huggingface-hub`):
 
 ```bash
 python scripts/fetch_weights.py --revision <sha> --out weights --write-lock
@@ -46,20 +53,28 @@ This downloads `ema.pt`, `decoder.pt` and `config.json` into `weights/` (git-ign
 the sha256 of each file in `weights.lock.json`. Review the sha256 values once, then commit the file.
 Every later build re-downloads that exact revision and fails if a hash differs.
 
-## 2. Build the image on the VPS
+## 2. One-time: GitHub Actions access to the cluster
+
+The workflow needs one repository secret:
+
+| Secret | Value |
+|---|---|
+| `KUBECONFIG_SECRET` | The full kubeconfig file that reaches the k3s API (same value as in `anildev-home-page`) |
+
+Set it from your PC with the GitHub CLI, pointing at the kubeconfig you already use for the cluster:
 
 ```bash
-git pull
-docker build --build-arg EMA_REVISION=<sha> -t kick-tts:<tag> .
-docker save kick-tts:<tag> | sudo k3s ctr images import -
+gh secret set KUBECONFIG_SECRET -R anilized/kick-tts < ~/.kube/config
 ```
 
-- `EMA_REVISION` must be the same sha that is in `weights.lock.json`; the build fails when it is empty or when any
-  hash mismatches.
-- The image is local (no registry): `deploy/deployment.yaml` and `deploy/cronjob.yaml` use `imagePullPolicy: IfNotPresent`.
-- Use a new `<tag>` for every build (e.g. `0.1.1`); never re-use `latest`.
-- Set the tag in both manifests: `sed -i 's#image: kick-tts:.*#image: kick-tts:<tag>#' deploy/deployment.yaml deploy/cronjob.yaml`
-  (or use `kubectl set image` in step 5).
+Images are pulled from GHCR with `ghcr-pull-secret`, which the workflow re-creates in `streaming` on every
+deploy from the job's `GITHUB_TOKEN`. That token expires after the run, which is fine on the single-node
+cluster because `imagePullPolicy: IfNotPresent` keeps using the image already on the node. If the node is
+ever rebuilt, re-run the workflow (Actions > "Build, Push, and Deploy to k3s" > Run workflow) to refresh the
+pull secret and re-pull the image.
+
+The workflow also fails early, with a clear message, when the `kick-tts-secrets` Secret from section 3 does not
+exist yet: it never creates or overwrites that secret.
 
 ## 3. Create the secret
 
@@ -78,7 +93,25 @@ cp deploy/secret.example.yaml deploy/secret.local.yaml   # *.local.yaml is git-i
 
 Generate tokens with `python -c "import secrets; print(secrets.token_urlsafe(32))"`. Never commit the filled file.
 
-## 4. Apply
+## 4. Apply by hand (fallback)
+
+Pushing to `main` does everything in this section automatically (namespace, pull secret, ConfigMap, manifests
+with the image placeholder `ghcr.io/GITHUB_OWNER/kick-tts:IMAGE_TAG` replaced by the sha-tagged image,
+`rollout status`, smoke curls). Use the steps below only when Actions is unavailable or you want to apply a
+local change without pushing.
+
+Build the image locally and import it into k3s (the workflow does the same build with `EMA_REVISION` read from
+`weights.lock.json`, then pushes to GHCR instead of importing):
+
+```bash
+docker build --build-arg EMA_REVISION=<sha> -t kick-tts:<tag> .
+docker save kick-tts:<tag> | sudo k3s ctr images import -
+```
+
+`EMA_REVISION` must be the sha in `weights.lock.json`; the build fails when it is empty or when any hash
+mismatches. For a locally imported image, replace the placeholder with your tag when applying
+(`sed "s|ghcr.io/GITHUB_OWNER/kick-tts:IMAGE_TAG|kick-tts:<tag>|"` on `deployment.yaml` and `cronjob.yaml`),
+exactly as the workflow does with the GHCR tag.
 
 The pronunciation table is mounted from a ConfigMap generated from the repo file (there is no ConfigMap YAML in git):
 
@@ -86,9 +119,10 @@ The pronunciation table is mounted from a ConfigMap generated from the repo file
 kubectl create configmap kick-tts-pronounce --from-file=pronounce.yaml=app/reader/pronounce.yaml -n streaming --dry-run=client -o yaml | kubectl apply -f -
 ```
 
-Apply order (PVC and ConfigMap first, because the pod mounts them):
+Apply order (namespace, PVC and ConfigMap first, because the pod mounts them):
 
 ```bash
+kubectl apply -f deploy/namespace.yaml
 kubectl apply -n streaming -f deploy/pvc.yaml
 # ConfigMap: the `kubectl create configmap ... | kubectl apply -f -` command above
 kubectl apply -n streaming -f deploy/secret.local.yaml
@@ -198,38 +232,40 @@ new one starts: webhooks sent in that gap (about a minute) fail, and Kick retrie
 
 ### Roll out a new image
 
+Push to `main`. The run's deploy job prints the pods, the ingress and the image now set on both the Deployment
+and the CronJob; `gh run watch -R anilized/kick-tts` follows it from the terminal. The workflow sets the same
+sha-tagged image on the Deployment and the CronJob, so the two never drift.
+
+Manual equivalent (for a locally imported image, see section 4):
+
 ```bash
-docker build --build-arg EMA_REVISION=<sha> -t kick-tts:<new-tag> .
-docker save kick-tts:<new-tag> | sudo k3s ctr images import -
 kubectl set image deployment/kick-tts kick-tts=kick-tts:<new-tag> -n streaming
 kubectl rollout status deployment/kick-tts -n streaming
-
-# the CronJob must run the same image: update the manifest tag, then apply it
-sed -i 's#image: kick-tts:.*#image: kick-tts:<new-tag>#' deploy/deployment.yaml deploy/cronjob.yaml
-kubectl apply -n streaming -f deploy/cronjob.yaml
+kubectl set image cronjob/kick-tts-subscribe ensure=kick-tts:<new-tag> -n streaming
 ```
 
-Editing `deploy/cronjob.yaml` alone changes nothing in the cluster; without the `kubectl apply` the 6-hourly
-subscription job keeps running the previous image. Check both with
+Editing `deploy/cronjob.yaml` alone changes nothing in the cluster; without `kubectl apply -n streaming -f deploy/cronjob.yaml`
+the 6-hourly subscription job keeps running the previous image. Check both with
 `kubectl get deploy/kick-tts cronjob/kick-tts-subscribe -n streaming -o jsonpath='{..image}'`.
 
 ### Roll back
 
-The previous image is still in the node's containerd store, so rollback needs no rebuild:
+Every deployed image stays in GHCR under its commit sha, so a rollback is either `git revert` + push (preferred,
+keeps the repo and the cluster in step) or a direct `kubectl rollout undo`:
 
 ```bash
 kubectl rollout undo deployment/kick-tts -n streaming
-# or pin an explicit tag:
-kubectl set image deployment/kick-tts kick-tts=kick-tts:<previous-tag> -n streaming
+# or pin an explicit sha (the previous run's image):
+kubectl set image deployment/kick-tts kick-tts=ghcr.io/anilized/kick-tts:<previous-sha> -n streaming
+kubectl set image cronjob/kick-tts-subscribe ensure=ghcr.io/anilized/kick-tts:<previous-sha> -n streaming
 ```
 
-`rollout undo` and `set image` only touch the Deployment. Keep the CronJob on the same image: set the tag back in
-`deploy/cronjob.yaml` (and `deploy/deployment.yaml`, so the files match the cluster) and run
-`kubectl apply -n streaming -f deploy/cronjob.yaml`, or in one step
-`kubectl set image cronjob/kick-tts-subscribe ensure=kick-tts:<previous-tag> -n streaming`.
+`rollout undo` and `set image` only touch what they name. Keep the CronJob on the same image as the Deployment.
+The next push to `main` overrides any manual change.
 
-List the images the node holds with `sudo k3s ctr images ls | grep kick-tts`.
-Remove old tags with `sudo k3s ctr images rm docker.io/library/kick-tts:<old-tag>` only after the new one is stable.
+For locally imported images: the previous tag is still in the node's containerd store
+(`sudo k3s ctr images ls | grep kick-tts`); remove old tags with `sudo k3s ctr images rm docker.io/library/kick-tts:<old-tag>`
+only after the new one is stable.
 
 ### Kick subscriptions
 
