@@ -1,12 +1,17 @@
-fastapi
-uvicorn[standard]
-httpx
-websockets
-cryptography
-anthropic
-prometheus-client
-pydantic
-pydantic-settings
-pyyaml
-numpy
-soundfile
+# Direct runtime dependencies, pinned == to the shared venv (tests/test_requirements_pins.py enforces this).
+# torch is intentionally NOT listed: the image installs torch==${TORCH_VERSION} from the PyTorch CPU index
+# (https://download.pytorch.org/whl/cpu) before this file. Never add torchaudio/torchvision.
+fastapi==0.142.2
+uvicorn[standard]==0.54.0
+pydantic==2.13.5
+pydantic-settings==2.15.0
+prometheus-client==0.26.0
+httpx==0.28.1
+anthropic==1.11.0
+cryptography==50.0.2
+numpy==2.4.6
+pyyaml==6.0.3
+websockets==17.2
+ema-lightning==1.0.1
+normalizer-tr==0.4.0
+huggingface-hub==2.1.1
