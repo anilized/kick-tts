@@ -67,12 +67,14 @@ class EmaEngine:
             self._tts._batch_size = int(settings.EMA_BATCH_SIZE)
 
         self.sample_rate = int(settings.SAMPLE_RATE)
+        self.speed = float(settings.SPEECH_SPEED)
         log.info(
-            "EmaEngine ready: torch threads=%s OMP_NUM_THREADS=%s MKL_NUM_THREADS=%s batch_size=%s weights=%s",
+            "EmaEngine ready: torch threads=%s OMP_NUM_THREADS=%s MKL_NUM_THREADS=%s batch_size=%s speed=%s weights=%s",
             torch.get_num_threads(),
             os.environ.get("OMP_NUM_THREADS"),
             os.environ.get("MKL_NUM_THREADS"),
             self._tts._batch_size,
+            self.speed,
             weights_dir,
         )
 
@@ -85,7 +87,7 @@ class EmaEngine:
         self._tts._batch_size = value
 
     def synth(self, text: str, sample_rate: int = 24000) -> bytes:
-        speech = self._tts.say(text, sample_rate=sample_rate)
+        speech = self._tts.say(text, speed=self.speed, sample_rate=sample_rate)
         return encode_wav(speech.audio, sample_rate)
 
     def warmup(self) -> None:

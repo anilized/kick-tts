@@ -190,8 +190,9 @@ STUB_PRELUDE = """
             self._batch_size = None
             self.parts = (model, decoder, frontend)
             return self
-        def say(self, text, sample_rate=48000):
+        def say(self, text, speed=1.0, sample_rate=48000):
             assert self._batch_size == 1
+            events.append(("say", speed, sample_rate))
             n = sample_rate // 2
             return types.SimpleNamespace(audio=(0.2 * np.sin(np.arange(n) / 10)).astype(np.float32))
 
@@ -227,7 +228,7 @@ def test_ema_engine_construction_order_threads_and_batch_size(tmp_path):
     assert "torch" not in sys.modules
     from app.engine.ema import EmaEngine
     assert "torch" not in sys.modules
-    eng = EmaEngine(settings(Path(r"{tmp_path}"), TORCH_NUM_THREADS=3, EMA_BATCH_SIZE=1))
+    eng = EmaEngine(settings(Path(r"{tmp_path}"), TORCH_NUM_THREADS=3, EMA_BATCH_SIZE=1, SPEECH_SPEED=0.8))
     # env was set before torch was first imported
     assert events[0] == ("torch_import", "3", "3"), events
     assert os.environ["OMP_NUM_THREADS"] == "3" and os.environ["MKL_NUM_THREADS"] == "3"
@@ -238,6 +239,7 @@ def test_ema_engine_construction_order_threads_and_batch_size(tmp_path):
     assert eng.name == "ema" and eng._batch_size == 1
     wav = eng.synth("merhaba", 24000)
     assert wav_info(wav)[:3] == (1, 24000, 2)
+    assert ("say", 0.8, 24000) in events, events   # SPEECH_SPEED is forwarded on every synth
     eng.warmup()
     print("ok")
     """

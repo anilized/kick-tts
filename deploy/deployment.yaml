@@ -42,6 +42,8 @@ spec:
               value: "2"
             - name: TORCH_NUM_THREADS
               value: "2"
+            - name: SPEECH_SPEED       # speaking rate, 1.0 = natural; see README "Engine and weights"
+              value: "0.85"
             - name: HF_HUB_OFFLINE
               value: "1"
             - name: XDG_CACHE_HOME

@@ -103,7 +103,7 @@ for it, or for `duration_s + ACK_GRACE_S`, before sending the next item), and `{
 
 Every setting is an environment variable (or a line in `.env`); see `.env.example` for the full list
 with defaults. The most relevant ones: `CONTROL_TOKEN`, `OVERLAY_KEY`, `ANTHROPIC_API_KEY` (unset =
-rules-only reader), `FAKE_ENGINE`, `EMA_WEIGHTS_DIR`, `TORCH_NUM_THREADS`, `MIN_KICKS`, `REWARD_TITLE`,
+rules-only reader), `FAKE_ENGINE`, `EMA_WEIGHTS_DIR`, `TORCH_NUM_THREADS`, `SPEECH_SPEED`, `MIN_KICKS`, `REWARD_TITLE`,
 `COMMAND_PREFIX`, `COMMAND_ROLES`, `COMMAND_COOLDOWN_S`, `MAX_TEXT_CHARS`, `MAX_QUEUE`, `BLOCKLIST`
 (empty by default; when set, matching items are dropped, never censored), `PRONOUNCE_PATH`.
 
@@ -186,6 +186,10 @@ the brief's table of cases.
   `/opt/weights`) through `load_acoustic`, `load_decoder`, `Frontend` and `EMA._from_parts`, so the
   runtime never calls `hf_hub_download`. Missing files raise `WeightsNotFoundError` at startup instead
   of silently falling back to the fake engine.
+- `SPEECH_SPEED` (default 1.0) is passed to `say(speed=...)` on every synth. 1.0 is the model's natural
+  pace; lower is slower and higher faster, within the library's 0.25 to 4 range (0.9 makes the audio
+  about 13 % longer, 0.8 about 27 %). The cluster sets 0.85 in `deploy/deployment.yaml`; change it there
+  and push, or set it in `.env` locally. Settings outside the range fail at startup.
 - `EMA_BATCH_SIZE` (default 1) is assigned to the model's `_batch_size` before warm-up, which skips the
   ~21 s CPU batch-size probe. The probe cache (`XDG_CACHE_HOME`) is still mounted on a PVC in k3s.
 - Warm-up synthesizes one short sentence on the shared one-thread executor as a background task after

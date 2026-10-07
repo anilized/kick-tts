@@ -207,3 +207,16 @@ def test_foundation_modules_do_not_import_torch():
     )
     out = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, check=True)
     assert out.stdout.strip() == "False", out.stdout + out.stderr
+
+
+def test_speech_speed_default_and_range():
+    import pytest
+    from pydantic import ValidationError
+    from app.config import Settings
+
+    assert Settings(_env_file=None, FAKE_ENGINE=True).SPEECH_SPEED == 1.0
+    assert Settings(_env_file=None, FAKE_ENGINE=True, SPEECH_SPEED="0.85").SPEECH_SPEED == 0.85
+    for bad in ("0.1", "4.5", "0"):
+        with pytest.raises(ValidationError, match="SPEECH_SPEED"):
+            Settings(_env_file=None, FAKE_ENGINE=True, SPEECH_SPEED=bad)
+

@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     EMA_BATCH_SIZE: int = 1
     TORCH_NUM_THREADS: int = 2
     SAMPLE_RATE: int = 24000
+    # Speaking rate passed to EMA Lightning's say(speed=...): 1.0 = the model's natural pace, lower is
+    # slower (0.85 ~ 18 % longer audio). The library accepts 0.25 .. 4.
+    SPEECH_SPEED: float = 1.0
 
     # kick event mapping
     KICK_BROADCASTER_USER_ID: int = 0
@@ -79,6 +82,8 @@ class Settings(BaseSettings):
             if not self.FAKE_ENGINE:
                 raise ValueError("OVERLAY_KEY is required unless FAKE_ENGINE=1")
             self.OVERLAY_KEY = "dev-key"
+        if not 0.25 <= self.SPEECH_SPEED <= 4:
+            raise ValueError("SPEECH_SPEED must be between 0.25 and 4")
         return self
 
     # ASCII Kick API identifiers (redemption status, badge type): plain lower(), never Turkish I/ı mapping.
