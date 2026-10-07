@@ -1,0 +1,13 @@
+# Mounted at /cache (XDG_CACHE_HOME): keeps any EMA Lightning runtime cache across restarts.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kick-tts-cache
+  labels:
+    app: kick-tts
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
