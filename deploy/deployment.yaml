@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kick-tts
+  labels:
+    app: kick-tts
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate          # one 2Gi pod at a time on a 2 vCPU / 8 GB node: never run old and new together
+  selector:
+    matchLabels:
+      app: kick-tts
+  template:
+    metadata:
+      labels:
+        app: kick-tts
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: kick-tts
+          # Local image imported with `docker save | k3s ctr images import -`; bump the tag per build.
+          image: kick-tts:0.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: kick-tts-secrets
+          env:
+            - name: OMP_NUM_THREADS
+              value: "2"
+            - name: MKL_NUM_THREADS
+              value: "2"
+            - name: TORCH_NUM_THREADS
+              value: "2"
+            - name: HF_HUB_OFFLINE
+              value: "1"
+            - name: XDG_CACHE_HOME
+              value: /cache
+            - name: PRONOUNCE_PATH
+              value: /config/pronounce.yaml
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 1500m
+              memory: 2Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          # Warm-up (model load + one synth) runs in the background after the server listens, so /readyz
+          # is 503 for the first ~30 s by design. The startupProbe allows 60 x 5 s = 5 min before a restart.
+          startupProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: cache
+              mountPath: /cache
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: cache
+          persistentVolumeClaim:
+            claimName: kick-tts-cache
+        - name: config
+          configMap:
+            name: kick-tts-pronounce
+        - name: tmp
+          emptyDir: {}
