@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>kick-tts overlay</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    overflow: hidden;
+    font-family: "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  #caption {
+    position: fixed;
+    left: 50%;
+    bottom: 64px;
+    transform: translateX(-50%);
+    max-width: 80%;
+    box-sizing: border-box;
+    padding: 12px 28px;
+    text-align: center;
+    font-size: 48px;
+    line-height: 1.25;
+    font-weight: 800;
+    color: #fff;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    text-shadow:
+      -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000,
+      0 0 8px rgba(0, 0, 0, 0.9), 0 4px 12px rgba(0, 0, 0, 0.8);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  #caption.show { opacity: 1; }
+  #hint {
+    display: none;
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    padding: 6px 12px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  #hint.show { display: block; }
+  #debug {
+    display: none;
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    padding: 4px 10px;
+    font: 14px monospace;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 6px;
+  }
+  #debug.show { display: block; }
+</style>
+</head>
+<body>
+<div id="caption" aria-live="polite"></div>
+<div id="hint">click to enable audio</div>
+<div id="debug"></div>
+<script>
+(function () {
+  'use strict';
+
+  var params = new URLSearchParams(location.search);
+  var debugOn = params.get('debug') === '1';
+
+  var captionEl = document.getElementById('caption');
+  var hintEl = document.getElementById('hint');
+  var debugEl = document.getElementById('debug');
+
+  var ws = null;
+  var backoff = 1000;
+  var BACKOFF_MAX = 10000;
+  var reconnectTimer = null;
+  var pausedFlag = false;
+  var status = 'connecting';
+
+  var buffer = [];     // pending items (FIFO)
+  var current = null;  // {item, audio, acked}
+
+  function renderDebug() {
+    if (!debugOn) return;
+    debugEl.classList.add('show');
+    debugEl.textContent = 'ws: ' + status + (pausedFlag ? ' (paused)' : '') +
+      ' | queued: ' + buffer.length + ' | playing: ' + (current ? current.item.id : '-');
+  }
+
+  function setStatus(s) { status = s; renderDebug(); }
+
+  function send(obj) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      try { ws.send(JSON.stringify(obj)); } catch (e) { /* socket closing */ }
+    }
+  }
+
+  function showCaption(item) {
+    captionEl.textContent = '🔊 TTS · ' + item.user + ': ' + item.caption;
+    captionEl.classList.add('show');
+  }
+
+  function hideCaption() {
+    captionEl.classList.remove('show');
+    captionEl.textContent = '';
+  }
+
+  // Ends the current item exactly once: stop audio, ack, move on.
+  function finishCurrent() {
+    var cur = current;
+    if (!cur || cur.acked) return;
+    cur.acked = true;
+    current = null;
+    cur.audio.onended = null;
+    cur.audio.onerror = null;
+    try { cur.audio.pause(); } catch (e) { /* ignore */ }
+    cur.audio.removeAttribute('src');
+    hideCaption();
+    hintEl.classList.remove('show');
+    send({ type: 'played', id: cur.item.id });
+    renderDebug();
+    playNext();
+  }
+
+  function tryPlay(cur) {
+    var p;
+    try { p = cur.audio.play(); } catch (e) { p = Promise.reject(e); }
+    if (p && typeof p.then === 'function') {
+      p.then(function () {
+        hintEl.classList.remove('show');
+      }, function (err) {
+        if (current !== cur) return;
+        if (err && err.name === 'NotAllowedError') {
+          hintEl.classList.add('show');   // wait for a click, then retry
+        } else {
+          finishCurrent();
+        }
+      });
+    }
+  }
+
+  function playNext() {
+    if (current || buffer.length === 0) { renderDebug(); return; }
+    var item = buffer.shift();
+    var audio = new Audio();
+    var cur = { item: item, audio: audio, acked: false };
+    current = cur;
+    audio.onended = function () { if (current === cur) finishCurrent(); };
+    audio.onerror = function () { if (current === cur) finishCurrent(); };
+    audio.src = 'data:audio/wav;base64,' + item.audio_b64_wav;
+    showCaption(item);
+    renderDebug();
+    tryPlay(cur);
+  }
+
+  document.addEventListener('click', function () {
+    if (current && hintEl.classList.contains('show')) tryPlay(current);
+  });
+
+  function handle(msg) {
+    switch (msg.type) {
+      case 'item':
+        if (typeof msg.id === 'string' && typeof msg.audio_b64_wav === 'string') {
+          buffer.push({
+            id: msg.id,
+            user: String(msg.user == null ? '' : msg.user),
+            caption: String(msg.caption == null ? '' : msg.caption),
+            audio_b64_wav: msg.audio_b64_wav
+          });
+          playNext();
+        }
+        break;
+      case 'skip':
+        finishCurrent();
+        break;
+      case 'clear':
+        buffer.length = 0;
+        finishCurrent();
+        renderDebug();
+        break;
+      case 'paused':
+        pausedFlag = !!msg.value;
+        renderDebug();
+        break;
+      case 'ping':
+        send({ type: 'pong' });
+        break;
+    }
+  }
+
+  function scheduleReconnect() {
+    if (reconnectTimer !== null) return;
+    setStatus('reconnecting in ' + Math.round(backoff / 1000) + 's');
+    reconnectTimer = setTimeout(function () {
+      reconnectTimer = null;
+      connect();
+    }, backoff);
+    backoff = Math.min(backoff * 2, BACKOFF_MAX);
+  }
+
+  function connect() {
+    var u = new URL('ws' + location.search, location.href);
+    u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:';
+    setStatus('connecting');
+    var sock;
+    try {
+      sock = new WebSocket(u.toString());
+    } catch (e) {
+      scheduleReconnect();
+      return;
+    }
+    ws = sock;
+    sock.onopen = function () {
+      backoff = 1000;
+      setStatus('connected');
+    };
+    sock.onmessage = function (ev) {
+      var msg;
+      try { msg = JSON.parse(ev.data); } catch (e) { return; }
+      if (msg && typeof msg === 'object') handle(msg);
+    };
+    sock.onclose = function () {
+      if (ws === sock) ws = null;
+      buffer.length = 0;
+      scheduleReconnect();
+    };
+    sock.onerror = function () { try { sock.close(); } catch (e) { /* ignore */ } };
+  }
+
+  renderDebug();
+  connect();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+# The Prometheus Operator only picks up ServiceMonitors that match its serviceMonitorSelector.
+# Find the label to use for `release:` with:
+#   kubectl get prometheus -n monitoring -o yaml | grep -A5 serviceMonitorSelector
+# (for kube-prometheus-stack it is usually `release: <helm release name>`), then replace CHANGE_ME.
+# If the Prometheus also restricts namespaces (serviceMonitorNamespaceSelector), make sure `streaming` is allowed.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kick-tts
+  labels:
+    app: kick-tts
+    release: CHANGE_ME
+spec:
+  selector:
+    matchLabels:
+      app: kick-tts
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
