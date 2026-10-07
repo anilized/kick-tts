@@ -15,7 +15,13 @@ def get_engine(settings) -> Engine:
         log.info("FAKE_ENGINE=1: using FakeEngine (sine tone)")
         return FakeEngine()
     try:
-        from app.engine.ema import EmaEngine  # imports torch lazily, after the OMP/MKL env is set
+        # app.engine.ema imports nothing heavy; torch/ema_lightning are imported inside the constructor,
+        # after the OMP/MKL env is set. So the ImportError (torch or ema_lightning not installed) surfaces here.
+        from app.engine.ema import EmaEngine
+
+        # Missing weights raise WeightsNotFoundError (a FileNotFoundError, not an ImportError) and are NOT
+        # caught: in real mode the pod must fail visibly instead of quietly serving a sine tone.
+        return EmaEngine(settings)
     except ImportError as exc:
         from app.engine.fake import FakeEngine
 
@@ -25,4 +31,3 @@ def get_engine(settings) -> Engine:
             exc,
         )
         return FakeEngine()
-    return EmaEngine(settings)
