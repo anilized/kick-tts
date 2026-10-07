@@ -113,10 +113,11 @@ mismatches. For a locally imported image, replace the placeholder with your tag 
 (`sed "s|ghcr.io/GITHUB_OWNER/kick-tts:IMAGE_TAG|kick-tts:<tag>|"` on `deployment.yaml` and `cronjob.yaml`),
 exactly as the workflow does with the GHCR tag.
 
-The pronunciation table is mounted from a ConfigMap generated from the repo file (there is no ConfigMap YAML in git):
+The pronunciation table (`app/reader/pronounce.yaml`) and the tunables file (`app/settings.yaml`, e.g. `SPEECH_SPEED`)
+are mounted at `/config` from one ConfigMap generated from the repo files (there is no ConfigMap YAML in git):
 
 ```bash
-kubectl create configmap kick-tts-pronounce --from-file=pronounce.yaml=app/reader/pronounce.yaml -n streaming --dry-run=client -o yaml | kubectl apply -f -
+kubectl create configmap kick-tts-config --from-file=pronounce.yaml=app/reader/pronounce.yaml --from-file=settings.yaml=app/settings.yaml -n streaming --dry-run=client -o yaml | kubectl apply -f -
 ```
 
 Apply order (namespace, PVC and ConfigMap first, because the pod mounts them):
@@ -220,14 +221,17 @@ lower the request.
 
 ## 6. Day-2 operations
 
-### Update `pronounce.yaml`
+### Update `pronounce.yaml` or `settings.yaml`
+
+Normal path: edit the file, commit, push. The workflow regenerates the ConfigMap and the new pod reads it.
+By hand:
 
 ```bash
-kubectl create configmap kick-tts-pronounce --from-file=pronounce.yaml=app/reader/pronounce.yaml -n streaming --dry-run=client -o yaml | kubectl apply -f -
+kubectl create configmap kick-tts-config --from-file=pronounce.yaml=app/reader/pronounce.yaml --from-file=settings.yaml=app/settings.yaml -n streaming --dry-run=client -o yaml | kubectl apply -f -
 kubectl rollout restart deployment/kick-tts -n streaming
 ```
 
-The table is read at startup, so the restart is required. The strategy is `Recreate`, so the old pod stops before the
+Both files are read at startup, so the restart is required. The strategy is `Recreate`, so the old pod stops before the
 new one starts: webhooks sent in that gap (about a minute) fail, and Kick retries failed deliveries.
 
 ### Roll out a new image

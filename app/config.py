@@ -1,12 +1,23 @@
-"""Settings: environment variables plus an optional .env file. Field names are the env var names."""
+"""Settings: environment variables, an optional .env file and a YAML tunables file.
+
+Field names are the env var names and the YAML keys. Precedence: constructor kwargs > environment >
+.env > YAML file (SETTINGS_PATH, default app/settings.yaml) > built-in defaults.
+"""
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from pydantic import SecretStr, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+    YamlConfigSettingsSource,
+)
 
 _PACKAGE_DIR = Path(__file__).resolve().parent
+DEFAULT_SETTINGS_PATH = _PACKAGE_DIR / "settings.yaml"
 
 
 def _tr_lower(s: str) -> str:
@@ -25,6 +36,10 @@ class Settings(BaseSettings):
         case_sensitive=True,
         extra="ignore",
     )
+
+    # YAML tunables file (see app/settings.yaml). Empty string = no file. Read in settings_customise_sources,
+    # so it can only come from the environment or the constructor, never from the YAML itself.
+    SETTINGS_PATH: str = str(DEFAULT_SETTINGS_PATH)
 
     # auth (required unless FAKE_ENGINE, then dev defaults are filled in by the validator)
     CONTROL_TOKEN: str = ""
@@ -71,6 +86,26 @@ class Settings(BaseSettings):
     ACK_GRACE_S: float = 2.0
 
     LOG_LEVEL: str = "INFO"
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        sources: list[PydanticBaseSettingsSource] = [init_settings, env_settings, dotenv_settings]
+        init_kwargs = getattr(init_settings, "init_kwargs", {}) or {}
+        raw = init_kwargs.get("SETTINGS_PATH", os.environ.get("SETTINGS_PATH", str(DEFAULT_SETTINGS_PATH)))
+        path = str(raw or "").strip()
+        if path:
+            if not Path(path).is_file():
+                raise ValueError(f"SETTINGS_PATH={path}: file not found")
+            sources.append(YamlConfigSettingsSource(settings_cls, yaml_file=path, yaml_file_encoding="utf-8"))
+        sources.append(file_secret_settings)
+        return tuple(sources)
 
     @model_validator(mode="after")
     def _require_secrets_unless_fake(self) -> "Settings":

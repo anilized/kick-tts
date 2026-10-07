@@ -1,0 +1,25 @@
+# Tunables for kick-tts that are not secrets. Edit this file, commit, push: the deploy workflow ships it
+# to the cluster (ConfigMap kick-tts-config, mounted at /config/settings.yaml) and restarts the pod.
+#
+# Keys are the Settings field names from app/config.py (same names as the environment variables).
+# Precedence: environment variable / .env  >  this file  >  built-in default.
+# Locally the packaged copy is used; set SETTINGS_PATH to point at another file (empty = no file).
+# Secrets (CONTROL_TOKEN, OVERLAY_KEY, ANTHROPIC_API_KEY, KICK_*) never go here.
+
+# --- voice -------------------------------------------------------------------------------------
+# Speaking rate passed to EMA Lightning. 1.0 = the model's natural pace, lower = slower, higher = faster.
+# Allowed 0.25 .. 4. 0.9 makes the audio about 13 % longer than 1.0, 0.8 about 27 %.
+SPEECH_SPEED: 0.85
+
+# --- kick event mapping (uncomment to override the defaults) -----------------------------------
+# MIN_KICKS: 1                 # gifts below this amount are not read
+# REWARD_TITLE: TTS            # channel-point reward whose redemptions are read
+# COMMAND_PREFIX: "!tts"
+# COMMAND_ROLES: broadcaster,moderator,subscriber
+# COMMAND_COOLDOWN_S: 30       # per-user cooldown for the chat command, seconds
+
+# --- queue / text limits -------------------------------------------------------------------------
+# MAX_TEXT_CHARS: 200
+# MAX_QUEUE: 50
+# MAX_ITEM_AGE_S: 600
+# BLOCKLIST: ""                # comma-separated words; matching items are dropped, never censored

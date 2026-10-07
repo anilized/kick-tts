@@ -24,6 +24,7 @@ _DEFAULTS = dict(
     CONTROL_TOKEN="test-token",
     OVERLAY_KEY="test-key",
     ANTHROPIC_API_KEY=None,
+    SETTINGS_PATH="",  # hermetic: do not read app/settings.yaml
 )
 
 

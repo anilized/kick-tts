@@ -209,14 +209,51 @@ def test_foundation_modules_do_not_import_torch():
     assert out.stdout.strip() == "False", out.stdout + out.stderr
 
 
-def test_speech_speed_default_and_range():
+def test_speech_speed_default_and_range(make_settings):
     import pytest
     from pydantic import ValidationError
-    from app.config import Settings
 
-    assert Settings(_env_file=None, FAKE_ENGINE=True).SPEECH_SPEED == 1.0
-    assert Settings(_env_file=None, FAKE_ENGINE=True, SPEECH_SPEED="0.85").SPEECH_SPEED == 0.85
+    assert make_settings().SPEECH_SPEED == 1.0  # built-in default (no YAML in hermetic tests)
+    assert make_settings(SPEECH_SPEED="0.85").SPEECH_SPEED == 0.85
     for bad in ("0.1", "4.5", "0"):
         with pytest.raises(ValidationError, match="SPEECH_SPEED"):
-            Settings(_env_file=None, FAKE_ENGINE=True, SPEECH_SPEED=bad)
+            make_settings(SPEECH_SPEED=bad)
+
+
+def test_settings_yaml_precedence(make_settings, tmp_path, monkeypatch):
+    import pytest
+    from app.config import DEFAULT_SETTINGS_PATH, Settings
+
+    yml = tmp_path / "settings.yaml"
+    yml.write_text("SPEECH_SPEED: 0.7\nREWARD_TITLE: Seslendir\n", encoding="utf-8")
+    s = make_settings(SETTINGS_PATH=str(yml))
+    assert s.SPEECH_SPEED == 0.7 and s.REWARD_TITLE == "Seslendir"
+    # environment beats the YAML
+    monkeypatch.setenv("SPEECH_SPEED", "1.5")
+    assert Settings(_env_file=None, FAKE_ENGINE=True, SETTINGS_PATH=str(yml)).SPEECH_SPEED == 1.5
+    monkeypatch.delenv("SPEECH_SPEED")
+    # SETTINGS_PATH from the environment selects the file; empty disables it
+    monkeypatch.setenv("SETTINGS_PATH", str(yml))
+    assert Settings(_env_file=None, FAKE_ENGINE=True).SPEECH_SPEED == 0.7
+    monkeypatch.setenv("SETTINGS_PATH", "")
+    assert Settings(_env_file=None, FAKE_ENGINE=True).SPEECH_SPEED == 1.0
+    # a missing explicit file is an error, never a silent fallback
+    with pytest.raises(ValueError, match="SETTINGS_PATH"):
+        make_settings(SETTINGS_PATH=str(tmp_path / "nope.yaml"))
+    # the packaged file is the default and is what the cluster ships
+    monkeypatch.delenv("SETTINGS_PATH")
+    assert DEFAULT_SETTINGS_PATH.is_file()
+    assert Settings(_env_file=None, FAKE_ENGINE=True).SPEECH_SPEED == 0.85
+
+
+def test_packaged_settings_yaml_only_uses_known_keys():
+    import yaml
+    from app.config import DEFAULT_SETTINGS_PATH, Settings
+
+    data = yaml.safe_load(DEFAULT_SETTINGS_PATH.read_text(encoding="utf-8")) or {}
+    unknown = set(data) - set(Settings.model_fields)
+    assert not unknown, f"app/settings.yaml has keys that are not Settings fields: {unknown}"
+    secret_like = {k for k in data if k in ("CONTROL_TOKEN", "OVERLAY_KEY", "ANTHROPIC_API_KEY") or k.startswith("KICK_CLIENT")}
+    assert not secret_like, "secrets never go in app/settings.yaml"
+    assert "SETTINGS_PATH" not in data
 

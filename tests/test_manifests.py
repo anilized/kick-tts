@@ -115,6 +115,8 @@ def test_deployment_env(container):
         assert env.get(name) == "2", f"{name} must be the string \"2\""
     assert env["HF_HUB_OFFLINE"] == "1"
     assert env["PRONOUNCE_PATH"] == "/config/pronounce.yaml"
+    assert env["SETTINGS_PATH"] == "/config/settings.yaml"
+    assert "SPEECH_SPEED" not in env  # tunables live in app/settings.yaml, not in the manifest
     assert any(e.get("secretRef", {}).get("name") == "kick-tts-secrets" for e in container["envFrom"])
 
 
@@ -128,7 +130,7 @@ def test_deployment_volumes_and_cache_env(deployment, container):
     assert volumes["cache"]["persistentVolumeClaim"]["claimName"] == _one("pvc.yaml", "PersistentVolumeClaim")["metadata"]["name"]
 
     assert mounts["config"]["mountPath"] == "/config"
-    assert volumes["config"]["configMap"]["name"] == "kick-tts-pronounce"
+    assert volumes["config"]["configMap"]["name"] == "kick-tts-config"
 
     # read-only root filesystem needs a writable /tmp
     assert mounts["tmp"]["mountPath"] == "/tmp"
@@ -268,7 +270,8 @@ def test_workflow_deploy_replaces_the_manifest_placeholder(workflow):
         assert f"deploy/{name}" in deploy, name
     assert "-f deploy/secret" not in deploy  # the app secret is never applied by CI
     assert "kick-tts-secrets" in deploy  # ... but its existence is checked
-    assert "kick-tts-pronounce" in deploy and "app/reader/pronounce.yaml" in deploy
+    assert "kick-tts-config" in deploy
+    assert "pronounce.yaml=app/reader/pronounce.yaml" in deploy and "settings.yaml=app/settings.yaml" in deploy
     assert "ghcr-pull-secret" in deploy
     assert "release: CHANGE_ME" in deploy  # ServiceMonitor skipped while the label is unset
     assert "rollout status deployment/kick-tts" in deploy
@@ -369,7 +372,7 @@ def test_deploy_doc_covers_required_steps():
         "fetch_weights.py --revision <sha> --out weights --write-lock",
         "docker build --build-arg EMA_REVISION=<sha> -t kick-tts:<tag> .",
         "docker save kick-tts:<tag> | sudo k3s ctr images import -",
-        "kubectl create configmap kick-tts-pronounce --from-file=pronounce.yaml=app/reader/pronounce.yaml -n streaming --dry-run=client -o yaml | kubectl apply -f -",
+        "kubectl create configmap kick-tts-config --from-file=pronounce.yaml=app/reader/pronounce.yaml --from-file=settings.yaml=app/settings.yaml -n streaming --dry-run=client -o yaml | kubectl apply -f -",
         "kubectl get prometheus -n monitoring -o yaml | grep -A5 serviceMonitorSelector",
         "kubectl get certificate -n streaming",
         "https://anildev.io/tts/healthz",

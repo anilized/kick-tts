@@ -102,10 +102,11 @@ jobs:
             exit 1
           fi
 
-      - name: Pronunciation ConfigMap
+      - name: Config ConfigMap (pronounce.yaml + settings.yaml)
         run: |
-          kubectl create configmap kick-tts-pronounce \
+          kubectl create configmap kick-tts-config \
             --from-file=pronounce.yaml=app/reader/pronounce.yaml \
+            --from-file=settings.yaml=app/settings.yaml \
             -n ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Apply manifests
