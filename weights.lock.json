@@ -1,8 +1,8 @@
 {
-  "revision": "PLACEHOLDER_RUN_FETCH_WEIGHTS_WITH_WRITE_LOCK",
+  "revision": "7a6ba1ad216bb2f1da9863f80ac8770a6a807632",
   "files": {
-    "ema.pt": "PLACEHOLDER_RUN_FETCH_WEIGHTS_WITH_WRITE_LOCK",
-    "decoder.pt": "PLACEHOLDER_RUN_FETCH_WEIGHTS_WITH_WRITE_LOCK",
-    "config.json": "PLACEHOLDER_RUN_FETCH_WEIGHTS_WITH_WRITE_LOCK"
+    "ema.pt": "95aec03dafbe0e1d69bca774ab597c779464729a14bc99bfcb52480090c7dfe6",
+    "decoder.pt": "9595819b173f411340f63d11332695121a97f8bf1f6d8b6fef0b21cf99c7ad67",
+    "config.json": "27546c470dd4e86d9ab8172fd1c85c45a4bffdf52d9ccb3f511c4b0c3ae38241"
   }
 }
