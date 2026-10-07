@@ -151,8 +151,11 @@ def test_settings_defaults_and_list_properties(make_settings):
     assert s.reward_statuses == ["pending", "accepted"]
     assert s.command_roles == ["broadcaster", "moderator", "subscriber"]
     assert s.blocklist == []
-    s2 = make_settings(BLOCKLIST=" Foo, ,BAR ,İşte", REWARD_STATUSES="Accepted")
-    assert s2.blocklist == ["foo", "bar", "işte"] and s2.reward_statuses == ["accepted"]
+    s2 = make_settings(BLOCKLIST=" Foo, ,BAR ,İşte", REWARD_STATUSES="ACCEPTED,PENDING", COMMAND_ROLES="VIP,SUBSCRIBER")
+    assert s2.blocklist == ["foo", "bar", "işte"]
+    # ASCII Kick identifiers must not get the Turkish I -> ı mapping ('vıp' would never match the API)
+    assert s2.reward_statuses == ["accepted", "pending"]
+    assert s2.command_roles == ["vip", "subscriber"]
     key = make_settings(ANTHROPIC_API_KEY="sk-x").ANTHROPIC_API_KEY
     assert key.get_secret_value() == "sk-x" and "sk-x" not in repr(key)
 
@@ -160,6 +163,21 @@ def test_settings_defaults_and_list_properties(make_settings):
 def test_settings_reads_env(monkeypatch, make_settings):
     monkeypatch.setenv("MAX_QUEUE", "7")
     assert Settings(_env_file=None, FAKE_ENGINE=True).MAX_QUEUE == 7
+
+
+def test_settings_empty_env_values_stay_none(monkeypatch, make_settings, tmp_path):
+    # as written in .env.example: ANTHROPIC_API_KEY= / KICK_PUBLIC_KEY_PEM= must mean "unset"
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "")
+    monkeypatch.setenv("KICK_PUBLIC_KEY_PEM", "")
+    s = Settings(_env_file=None, FAKE_ENGINE=True)
+    assert s.ANTHROPIC_API_KEY is None and s.KICK_PUBLIC_KEY_PEM is None
+    monkeypatch.delenv("ANTHROPIC_API_KEY")
+    monkeypatch.delenv("KICK_PUBLIC_KEY_PEM")
+    env_file = tmp_path / ".env"
+    env_file.write_text("FAKE_ENGINE=1\nANTHROPIC_API_KEY=\nKICK_PUBLIC_KEY_PEM=\nPRONOUNCE_PATH=\n", encoding="utf-8")
+    s = Settings(_env_file=env_file)
+    assert s.ANTHROPIC_API_KEY is None and s.KICK_PUBLIC_KEY_PEM is None
+    assert s.PRONOUNCE_PATH == ROOT / "app" / "reader" / "pronounce.yaml"
 
 
 # ---- factories / metrics ----------------------------------------------------------------------

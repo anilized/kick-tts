@@ -4,10 +4,9 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Callable, Literal, Protocol, Union, runtime_checkable
+from typing import Annotated, Any, Callable, Literal, Protocol, Union, runtime_checkable
 
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
-from typing_extensions import Annotated
 
 Kind = Literal["kicks", "reward", "command", "manual"]
 

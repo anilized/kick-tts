@@ -13,14 +13,15 @@ def _tr_lower(s: str) -> str:
     return s.replace("I", "ı").replace("İ", "i").lower()
 
 
-def _csv(value: str) -> list[str]:
-    return [_tr_lower(part.strip()) for part in value.split(",") if part.strip()]
+def _csv(value: str, lower=str.lower) -> list[str]:
+    return [lower(part.strip()) for part in value.split(",") if part.strip()]
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
+        env_ignore_empty=True,  # ANTHROPIC_API_KEY= / KICK_PUBLIC_KEY_PEM= in .env stay None
         case_sensitive=True,
         extra="ignore",
     )
@@ -80,6 +81,7 @@ class Settings(BaseSettings):
             self.OVERLAY_KEY = "dev-key"
         return self
 
+    # ASCII Kick API identifiers (redemption status, badge type): plain lower(), never Turkish I/ı mapping.
     @property
     def reward_statuses(self) -> list[str]:
         return _csv(self.REWARD_STATUSES)
@@ -88,6 +90,7 @@ class Settings(BaseSettings):
     def command_roles(self) -> list[str]:
         return _csv(self.COMMAND_ROLES)
 
+    # Turkish words: Turkish-aware lowercasing (İ -> i, I -> ı).
     @property
     def blocklist(self) -> list[str]:
-        return _csv(self.BLOCKLIST)
+        return _csv(self.BLOCKLIST, _tr_lower)
