@@ -33,9 +33,11 @@ EMOTE = re.compile(r"\[emote:\d+:([^\]]+)\]")
 URL = re.compile(r"https?://\S+|www\.\S+", re.I)
 MENTION = re.compile(r"@(\w+(?:[.\-]\w+)*)")
 SEPARATORS = re.compile(r"[_.\-]+")
-SMILEY = re.compile(r"(?<!\w)(?:[:;=8][-^']?[)(DPpOo3/\\|*]+|<3|\^\^|-_-)(?!\w)")
-REPEAT_CHAR = re.compile(r"(.)\1{2,}")               # çooooook -> çook, !!!!! -> !!
-REPEAT_UNIT = re.compile(r"(\w{2,3}?)\1{3,}")        # hahahahahaha -> hahaha, jsjsjsjsjs -> jsjsjs
+# [:;=] smileys may touch the previous word ("tşk:)"); 8-eyes, <3, ^^ and -_- need a word boundary before them.
+SMILEY = re.compile(r"(?:[:;=][-^']?[)(DPpOo3/\\|*]+|(?<!\w)(?:8[-^']?[)(DPpOo3/\\|*]+|<3|\^\^|-_-))(?!\w)")
+# Digits are excluded from both repeat caps: "1000 tl" and "10101010" are amounts, not stretched letters.
+REPEAT_CHAR = re.compile(r"([^\d\s])\1{2,}")         # çooooook -> çook, !!!!! -> !!
+REPEAT_UNIT = re.compile(r"([^\W\d_]{2,3}?)\1{3,}")  # hahahahahaha -> hahaha, jsjsjsjsjs -> jsjsjs
 WORD = re.compile(r"[a-zçğıöşü]+")
 _NOT_WORD_CHAR = r"(?<![\wçğıöşü])(?:{keys})(?![\wçğıöşü])"
 

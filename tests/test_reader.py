@@ -62,6 +62,26 @@ def test_mention_amount_thanks_and_no_smiley(reader):
     assert ":)" not in out and ")" not in out
 
 
+def test_digit_amounts_are_never_shortened(reader):
+    assert read(reader, "1000 tl attım") == "1000 lira attım"
+    assert read(reader, "5000") == "5000"
+    assert read(reader, "111") == "111"
+    assert read(reader, "10101010") == "10101010"
+    assert read(reader, "1000000 kick") == "1000000 kick"
+
+
+def test_letter_and_punctuation_repeats_still_collapse(reader):
+    assert read(reader, "çooooook") == "çook"
+    assert read(reader, "iyiiiii!!!!!") == "iyii!!"
+
+
+def test_smiley_glued_to_a_word_is_removed(reader):
+    assert read(reader, "tşk:)") == "teşekkürler"
+    assert read(reader, "abi:D nasılsın") == "abi nasılsın"
+    assert read(reader, "saat 10:30 gel") == "saat 10:30 gel"
+    assert read(reader, "çok iyi :D") == "çok iyi"
+
+
 def test_mention_separators_become_spaces(reader):
     assert read(reader, "@anil_dev.tv selam") == "anil dev teve selam"
     assert "@" not in read(reader, "@Anil-Dev selam")
