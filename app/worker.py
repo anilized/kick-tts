@@ -123,16 +123,22 @@ class Worker:
             audio_b64_wav=base64.b64encode(wav).decode("ascii"),
             duration_s=duration,
         )
+        self._hub.expect_ack(item.id)  # before the send: a fast client may ack mid-broadcast
         try:
             sent = await self._hub.broadcast(message)
         except Exception:
+            self._hub.discard_ack(item.id)
             metrics.tts_failures_total.labels(stage="broadcast").inc()
             log.exception("broadcast failed for item %s", item.id)
             return
+        if sent == 0:
+            # The last overlay left between queue.get() and the broadcast; the item is lost.
+            self._hub.discard_ack(item.id)
+            metrics.tts_items_dropped_total.labels(reason="no_client").inc()
+            log.warning("no overlay connected: dropped %s item %s from %s", item.kind, item.id, item.user)
+            return
         self.processed += 1
         log.info("speaking %s item %s from %s: %s (%.2fs, %d clients)", item.kind, item.id, item.user, text, duration, sent)
-        if sent == 0:
-            return
         acked = await self._hub.wait_ack(item.id, duration + self._s.ACK_GRACE_S)
         if not acked:
             log.debug("item %s: no played-ack, moving on", item.id)

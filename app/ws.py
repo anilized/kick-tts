@@ -128,13 +128,28 @@ class OverlayHub:
 
     # -- pacing ----------------------------------------------------------------------------------
 
+    def expect_ack(self, item_id: str) -> "asyncio.Future[bool]":
+        """Register interest in the played-ack for `item_id` BEFORE broadcasting it, so an ack that
+        arrives from a fast client while the item is still being sent to the others is not lost."""
+        fut = self._acks.get(item_id)
+        if fut is None:  # an already-resolved future (early ack) must be kept, not replaced
+            fut = asyncio.get_running_loop().create_future()
+            self._acks[item_id] = fut
+        return fut
+
+    def discard_ack(self, item_id: str) -> None:
+        fut = self._acks.pop(item_id, None)
+        if fut is not None and not fut.done():
+            fut.cancel()
+
     async def wait_ack(self, item_id: str, timeout_s: float) -> bool:
-        """True when an overlay reported `item_id` played; False on timeout or when released early."""
-        if not self._clients:
+        """True when an overlay reported `item_id` played; False on timeout or when released early.
+
+        Uses the future registered by `expect_ack` when there is one, otherwise registers it now."""
+        fut = self.expect_ack(item_id)
+        if not self._clients and not fut.done():
+            self.discard_ack(item_id)
             return False
-        loop = asyncio.get_running_loop()
-        fut: asyncio.Future[bool] = loop.create_future()
-        self._acks[item_id] = fut
         try:
             return await asyncio.wait_for(fut, timeout_s)
         except asyncio.TimeoutError:
