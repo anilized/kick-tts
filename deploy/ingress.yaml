@@ -1,0 +1,31 @@
+# Same pattern as streaming/steam-overlay. The /tts prefix is stripped by the rewrite,
+# so the app serves /healthz, /ws, /overlay ... at the root and all overlay URLs are relative.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kick-tts
+  labels:
+    app: kick-tts
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: anildev.io
+      http:
+        paths:
+          - path: /tts(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: kick-tts
+                port:
+                  number: 80
+  tls:
+    - hosts: [anildev.io]
+      secretName: anildev-tls

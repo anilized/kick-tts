@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kick-tts
+  labels:
+    app: kick-tts
+spec:
+  selector:
+    app: kick-tts
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
