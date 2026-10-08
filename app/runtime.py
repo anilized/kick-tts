@@ -80,10 +80,12 @@ class RuntimeStore:
 
 
 def _key_hint(key: str | None) -> str | None:
-    """Never the key itself: 'sk-ant-…ab12' style, enough to recognise which key is set."""
+    """Never the key itself: 'sk-ant-api03-…ab12' style. The prefix shows the key *type* (Console API keys
+    are sk-ant-api03-, a Claude Code OAuth token is sk-ant-oat01-, which the API rejects with 401)."""
     if not key:
         return None
-    return (key[:7] + "…" if len(key) > 11 else "…") + key[-4:]
+    prefix_len = 13 if key.startswith("sk-ant-") else 4
+    return (key[:prefix_len] + "…" if len(key) > prefix_len + 6 else "…") + key[-4:]
 
 
 class Runtime:

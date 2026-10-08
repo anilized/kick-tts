@@ -92,7 +92,7 @@ async def test_runtime_applies_overrides_live(make_settings, tmp_path):
     assert factory.calls[-1] == ("sk-ant-test-placeholder", 1.2) and rt.reader.name == "llm"
     assert factory.closed == ["rules"]
     d = rt.describe()
-    assert d["anthropic_api_key"] == {"configured": True, "source": "panel", "hint": "sk-ant-…lder"}
+    assert d["anthropic_api_key"] == {"configured": True, "source": "panel", "hint": "sk-ant-test-p…lder"}
     assert d["reader"] == "llm"
 
     # same key again: nothing rebuilt
@@ -115,13 +115,13 @@ async def test_runtime_env_key_is_reported_but_never_returned(make_settings, tmp
     settings = make_settings(ANTHROPIC_API_KEY="sk-ant-env-placeholder-1234")
     rt = Runtime(settings, RuntimeStore(tmp_path / "p.json"), RecordingFactory())
     d = rt.describe()
-    assert d["anthropic_api_key"] == {"configured": True, "source": "env", "hint": "sk-ant-…1234"}
+    assert d["anthropic_api_key"] == {"configured": True, "source": "env", "hint": "sk-ant-env-pl…1234"}
     assert "sk-ant-env-placeholder-1234" not in json.dumps(d)
     # a panel key overrides the env key; clearing it falls back to env, not to rules-only
     await rt.update(anthropic_api_key="sk-ant-panel-placeholder-9999")
     assert rt.describe()["anthropic_api_key"]["source"] == "panel"
     await rt.update(anthropic_api_key=None)
-    assert rt.describe()["anthropic_api_key"] == {"configured": True, "source": "env", "hint": "sk-ant-…1234"}
+    assert rt.describe()["anthropic_api_key"] == {"configured": True, "source": "env", "hint": "sk-ant-env-pl…1234"}
     assert rt.effective().ANTHROPIC_API_KEY.get_secret_value() == "sk-ant-env-placeholder-1234"
 
 
@@ -161,7 +161,7 @@ async def test_anthropic_check_ok_and_bad_key(make_settings):
     ok, detail = await _llm_reader(make_settings, 200).check()
     assert ok is True and "claude-haiku-4-5-20251001" in detail
     ok, detail = await _llm_reader(make_settings, 401).check()
-    assert ok is False and detail.startswith("HTTP 401")
+    assert ok is False and detail.startswith("HTTP 401") and "bad key" in detail
 
 
 # ---- API ---------------------------------------------------------------------------------------------
@@ -213,7 +213,7 @@ def test_settings_api_speed_and_key(panel_client, fake_engine):
 
     r = c.put("/panel/settings", json={"anthropic_api_key": "sk-ant-test-placeholder"})
     rt = r.json()["runtime"]
-    assert rt["anthropic_api_key"] == {"configured": True, "source": "panel", "hint": "sk-ant-…lder"}
+    assert rt["anthropic_api_key"] == {"configured": True, "source": "panel", "hint": "sk-ant-test-p…lder"}
     assert rt["reader"] == "llm" and "sk-ant-test-placeholder" not in r.text
     assert c.get("/status", headers={"Authorization": "Bearer test-token"}).json()["reader"] == "llm"
     assert factory.calls[-1] == ("sk-ant-test-placeholder", 1.3)

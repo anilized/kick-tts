@@ -36,6 +36,18 @@ MAX_OUTPUT_TOKENS = 200
 _QUOTES = "\"'`“”‘’«»"
 
 
+def _api_error_message(exc: Any) -> str:
+    """The API's own error text ('invalid x-api-key', ...), capped and never containing the key."""
+    body = getattr(exc, "body", None)
+    message = None
+    if isinstance(body, dict):
+        err = body.get("error")
+        message = err.get("message") if isinstance(err, dict) else body.get("message")
+    if not message:
+        message = getattr(exc, "message", None)
+    return str(message or "")[:120]
+
+
 def _secret(value: Any) -> str | None:
     if value is None:
         return None
@@ -74,7 +86,11 @@ class AnthropicReader:
                 timeout=max(self.timeout_s, 5.0),
             )
         except anthropic.APIStatusError as exc:
-            return False, f"HTTP {exc.status_code}: {type(exc).__name__}"
+            detail = f"HTTP {exc.status_code}: {type(exc).__name__}"
+            message = _api_error_message(exc)
+            if message:
+                detail += f" ({message})"
+            return False, detail
         except (asyncio.TimeoutError, anthropic.APITimeoutError):
             return False, "timeout"
         except Exception as exc:
