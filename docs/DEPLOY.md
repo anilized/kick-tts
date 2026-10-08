@@ -87,7 +87,7 @@ cp deploy/secret.example.yaml deploy/secret.local.yaml   # *.local.yaml is git-i
 |---|---|
 | `CONTROL_TOKEN` | Bearer token for `/speak`, `/skip`, `/clear`, `/pause`, `/resume`, `/status` |
 | `OVERLAY_KEY` | `?key=` for `/overlay` and `/ws` (part of the OBS browser-source URL) |
-| `ANTHROPIC_API_KEY` | LLM reader. Delete the line for rules-only mode |
+| `ANTHROPIC_API_KEY` | LLM reader. Delete the line for rules-only mode. Can also be set (and overridden) live on `/panel`; that value is stored on the cache PVC in `/cache/kick-tts/panel-settings.json`, together with the panel's speech speed |
 | `KICK_CLIENT_ID`, `KICK_CLIENT_SECRET` | Kick developer app, used by the `kick-tts-subscribe` CronJob and by "Continue with Kick" on `/panel` (redirect URL `https://anildev.io/tts/auth/kick/callback` in the portal) |
 | `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` | Discord application for "Continue with Discord" on `/panel` (redirect `https://anildev.io/tts/auth/discord/callback`). Delete both lines to hide the button |
 | `KICK_BROADCASTER_USER_ID` | `0` accepts any broadcaster; set the real id after `kick_subscribe.py resolve` (see `docs/KICK_SETUP.md`) |

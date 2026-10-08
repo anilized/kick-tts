@@ -101,6 +101,9 @@ class Settings(BaseSettings):
     # with user id KICK_BROADCASTER_USER_ID (when > 0) is always allowed.
     PANEL_ALLOWED_USERS: str = ""
     PANEL_SESSION_TTL_S: float = 7 * 24 * 3600
+    # Where the values set on the panel (Anthropic key, speech speed) are persisted. Must be writable and
+    # survive restarts: the cache PVC in the cluster (XDG_CACHE_HOME=/cache), ./.cache locally (git-ignored).
+    PANEL_STATE_PATH: Path = Path(os.environ.get("XDG_CACHE_HOME") or ".cache") / "kick-tts" / "panel-settings.json"
 
     LOG_LEVEL: str = "INFO"
 

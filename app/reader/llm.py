@@ -66,6 +66,21 @@ class AnthropicReader:
     async def aclose(self) -> None:
         await self.client.close()
 
+    async def check(self) -> tuple[bool, str]:
+        """One minimal request so the panel can tell a working key from a wrong one. Never raises."""
+        try:
+            await asyncio.wait_for(
+                self.client.messages.create(model=self.model, max_tokens=1, messages=[{"role": "user", "content": "ok"}]),
+                timeout=max(self.timeout_s, 5.0),
+            )
+        except anthropic.APIStatusError as exc:
+            return False, f"HTTP {exc.status_code}: {type(exc).__name__}"
+        except (asyncio.TimeoutError, anthropic.APITimeoutError):
+            return False, "timeout"
+        except Exception as exc:
+            return False, f"{type(exc).__name__}"
+        return True, f"ok ({self.model})"
+
     async def read(self, text: str, user: str) -> str:
         try:
             return await self._read(text, user)

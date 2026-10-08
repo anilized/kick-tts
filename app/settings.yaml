@@ -9,6 +9,7 @@
 # --- voice -------------------------------------------------------------------------------------
 # Speaking rate passed to EMA Lightning. 1.0 = the model's natural pace, lower = slower, higher = faster.
 # Allowed 0.25 .. 4. 0.9 makes the audio about 13 % longer than 1.0, 0.8 about 27 %.
+# A speed saved on /panel ("Voice & reader") overrides this value until "Reset" is pressed there.
 SPEECH_SPEED: 0.85
 
 # --- kick event mapping (uncomment to override the defaults) -----------------------------------

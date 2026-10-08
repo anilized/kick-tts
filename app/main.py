@@ -35,6 +35,7 @@ from app.panel import build_router as build_panel_router
 from app.queue import TtsQueue
 from app.reader import get_reader
 from app.reader.emoji import is_only_emoji
+from app.runtime import Runtime, RuntimeStore
 from app.worker import Worker
 from app.ws import CLOSE_POLICY_VIOLATION, OverlayHub
 
@@ -85,6 +86,7 @@ def create_app(
     clock: Callable[[], float] | None = None,
     key_provider: KeyProvider | None = None,
     oauth_http: httpx.AsyncClient | None = None,
+    reader_factory: Callable[[Settings], Reader] | None = None,
 ) -> FastAPI:
     clock = clock or time.time
     logging.getLogger("app").setLevel(settings.LOG_LEVEL.upper())
@@ -110,7 +112,8 @@ def create_app(
         state.key_cache = PublicKeyCache(key_provider)
         state.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="tts-synth")
         state.engine = engine
-        state.reader = reader if reader is not None else get_reader(settings)
+        state.runtime = Runtime(settings, RuntimeStore(settings.PANEL_STATE_PATH), reader_factory or get_reader, reader)
+        state.reader = state.runtime.reader  # kept for /status; the worker reads state.runtime.reader
         state.oauth_http = oauth_http if oauth_http is not None else httpx.AsyncClient(timeout=HTTP_TIMEOUT)
         state.providers = build_providers(settings, state.oauth_http)
 
@@ -131,6 +134,7 @@ def create_app(
                 log.error("engine warm-up failed: %s: %s", type(exc).__name__, exc, exc_info=True)
                 return
             state.engine = eng
+            state.runtime.attach_engine(eng)  # panel speed override, if any
             state.readiness = "ready"
             state.ready.set()
             log.info("engine %s ready", getattr(eng, "name", "?"))
@@ -139,7 +143,7 @@ def create_app(
             settings,
             state.queue,
             state.hub,
-            lambda: state.reader,
+            lambda: state.runtime.reader,
             lambda: state.engine,
             state.executor,
             state.ready,
@@ -301,7 +305,7 @@ def create_app(
             "readiness": st.readiness,
             "error": st.readiness_error,
             "engine": getattr(st.engine, "name", None),
-            "reader": getattr(st.reader, "name", None),
+            "reader": getattr(st.runtime.reader, "name", None),
         }
 
     return app

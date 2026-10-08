@@ -90,6 +90,8 @@ relative `Location`).
 | POST | `/panel/logout` | session cookie | Clears the session cookie. |
 | GET | `/auth/{kick,discord}/login` | none | 302 to the provider (Kick with PKCE); 404 when that provider is not configured. |
 | GET | `/auth/{kick,discord}/callback` | login cookie | OAuth callback; sets the session cookie and 302s to `../../panel` (relative). |
+| PUT | `/panel/settings` | session cookie, authorized | `{anthropic_api_key?, speech_speed?}` runtime overrides, applied live and persisted; 422 on a bad speed. |
+| POST | `/panel/settings/test-reader` | session cookie, authorized | One minimal request through the current reader: `{ok, reader, detail}`. |
 
 Bearer auth is `Authorization: Bearer <CONTROL_TOKEN>`; both the token and the overlay key are compared
 in constant time. Webhook responses: `queued`, `ignored` (nothing to say / not for us), `dropped`
@@ -118,7 +120,8 @@ rules-only reader), `FAKE_ENGINE`, `EMA_WEIGHTS_DIR`, `TORCH_NUM_THREADS`, `SPEE
 `COMMAND_PREFIX`, `COMMAND_ROLES`, `COMMAND_COOLDOWN_S`, `MAX_TEXT_CHARS`, `MAX_QUEUE`, `BLOCKLIST`
 (empty by default; when set, matching items are dropped, never censored), `PRONOUNCE_PATH`. For the
 panel: `KICK_CLIENT_ID` / `KICK_CLIENT_SECRET`, `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET`,
-`PUBLIC_BASE_URL`, `PANEL_ALLOWED_USERS`, `SESSION_SECRET`, `PANEL_SESSION_TTL_S` (see [Panel](#panel)).
+`PUBLIC_BASE_URL`, `PANEL_ALLOWED_USERS`, `SESSION_SECRET`, `PANEL_SESSION_TTL_S`, `PANEL_STATE_PATH` (see
+[Panel](#panel)). `ANTHROPIC_API_KEY` and `SPEECH_SPEED` can also be set live on the panel, which then wins.
 
 ## Tests
 
@@ -268,6 +271,8 @@ What the page shows after login:
 - **Keys**: the overlay key and the control token (masked, copyable) and the public base URL.
 - **Channel triggers**: `MIN_KICKS`, `REWARD_TITLE`, `COMMAND_PREFIX`, `COMMAND_ROLES`, cooldown, limits,
   `SPEECH_SPEED` as the running instance has them.
+- **Voice & reader** (editable): the speech speed (slider, 0.25 to 4) and an Anthropic API key for the
+  Claude reader, with a **Test** button that makes one tiny API call. See [Runtime settings](#runtime-settings-from-the-panel).
 - **Live**: `/status` polled every 5 s (readiness, queue length, overlay clients, paused, engine, reader) and
   buttons for `/speak` (test sentence), `/skip`, `/pause`, `/resume`, `/clear`, all called from the browser
   with the control token.
@@ -295,6 +300,27 @@ Everyone else sees a "not allowed" page that shows the exact `provider:id` entry
 single-tenant (one channel, one overlay key), so this is an admin allow list, not per-user keys; per-user
 keys come with the multi-tenant milestone.
 
+### Runtime settings from the panel
+
+Two values can be changed on the panel without touching the Secret or `settings.yaml`, and they apply at
+once, with no restart:
+
+- **Speech speed** sets `engine.speed`, which EMA Lightning reads on every synth (`FakeEngine` mirrors the
+  attribute). If the engine is still warming up the value is applied the moment it is ready.
+- **Anthropic API key** rebuilds the reader: with a key the worker switches to `AnthropicReader`, without one
+  back to `RulesReader`; the previous reader's HTTP client is closed. Saving a key runs the test request
+  (`messages.create` with `max_tokens=1`) and reports `HTTP 401: AuthenticationError` and the like, so a wrong
+  key is visible immediately instead of as a silent fallback counter. The key is never sent back to the
+  browser; the panel shows `sk-ant-…ab12`-style hints only.
+
+Precedence: panel value > environment / `.env` > `settings.yaml` > default. Removing the panel key falls back
+to `ANTHROPIC_API_KEY` from the Secret when that is set, otherwise to rules-only; resetting the speed returns
+to the `settings.yaml` value. The overrides are stored as JSON in `PANEL_STATE_PATH` (default
+`$XDG_CACHE_HOME/kick-tts/panel-settings.json`, i.e. `/cache/kick-tts/panel-settings.json` on the cache PVC in
+the cluster and `./.cache/...` locally, git-ignored), written atomically with mode 0600 and read at startup,
+so they survive restarts and image rollouts. Delete the file (and restart) to forget them. The key sits in
+plain text in that file on the node, the same trust level as the Secret's contents in etcd.
+
 ### Setup
 
 | Setting | Where | Value |
@@ -304,6 +330,7 @@ keys come with the multi-tenant milestone.
 | `PUBLIC_BASE_URL` | `deploy/deployment.yaml` env | `https://anildev.io/tts`: the origin and prefix browsers see; used for the redirect URIs, the cookie path and the URLs the panel prints. Unset locally (the request origin is used) |
 | `PANEL_ALLOWED_USERS` | `app/settings.yaml` | extra allowed identities (default `kick:anildev`) |
 | `SESSION_SECRET` | secret, optional | independent cookie-signing key; unset = derived from `CONTROL_TOKEN` |
+| `PANEL_STATE_PATH` | env, optional | where the panel's speed/key overrides are persisted (default under `XDG_CACHE_HOME`, the PVC) |
 
 A provider whose id or secret is missing is simply not offered on the login page; with neither configured
 the page says so. Locally, put the client ids/secrets in `.env` and register

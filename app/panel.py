@@ -3,6 +3,8 @@
     GET  /panel                       the page (static HTML, relative URLs only, works under /tts)
     GET  /panel/me                    401 {detail, providers} without a session, else identity (+ keys when authorized)
     POST /panel/logout                clears the session cookie
+    PUT  /panel/settings              {anthropic_api_key?, speech_speed?} runtime overrides (authorized only)
+    POST /panel/settings/test-reader  one request through the current reader to validate the key
     GET  /auth/{provider}/login       302 to Kick / Discord (sets a signed login-state cookie)
     GET  /auth/{provider}/callback    exchanges the code, sets the session cookie, 302 ../../panel
 
@@ -19,10 +21,12 @@ from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from pydantic import BaseModel
 
 from app import metrics
 from app.auth import LOGIN_STATE_TTL_S, AuthError, Identity, Provider, Signer, is_authorized, pkce_pair
 from app.config import Settings
+from app.runtime import UNSET, Runtime
 
 log = logging.getLogger(__name__)
 
@@ -62,12 +66,22 @@ def _cookie_opts(base: str) -> dict:
     return {"httponly": True, "samesite": "lax", "secure": base.startswith("https://"), "path": path}
 
 
-def session_payload(settings: Settings, base: str, who: Identity) -> dict:
+class SettingsUpdate(BaseModel):
+    """PUT /panel/settings body. A field that is absent is left unchanged; anthropic_api_key "" or null clears
+    the panel key (back to the environment value), speech_speed null resets to settings.yaml."""
+
+    anthropic_api_key: str | None = None
+    speech_speed: float | None = None
+
+
+def session_payload(settings: Settings, base: str, who: Identity, runtime: Runtime | None = None) -> dict:
     """What the page shows after login. Keys are included only for authorized identities."""
     authorized = is_authorized(settings, who)
     out: dict = {"user": who.to_dict(), "authorized": authorized}
     if not authorized:
         return out
+    if runtime is not None:
+        out["runtime"] = runtime.describe()
     out["settings"] = {
         "base_url": base,
         "overlay_url": f"{base}/overlay?key={settings.OVERLAY_KEY}",
@@ -83,7 +97,7 @@ def session_payload(settings: Settings, base: str, who: Identity) -> dict:
             "command_cooldown_s": settings.COMMAND_COOLDOWN_S,
             "max_text_chars": settings.MAX_TEXT_CHARS,
             "max_queue": settings.MAX_QUEUE,
-            "speech_speed": settings.SPEECH_SPEED,
+            "speech_speed": runtime.speech_speed if runtime is not None else settings.SPEECH_SPEED,  # effective value
         },
     }
     return out
@@ -117,9 +131,47 @@ def build_router(settings: Settings, signer: Signer) -> APIRouter:
         offered = sorted(providers(request))
         if who is None:
             return JSONResponse({"detail": "unauthorized", "providers": offered}, status_code=401, headers={"Cache-Control": "no-store"})
-        body = session_payload(settings, public_base(settings, request), who)
+        body = session_payload(settings, public_base(settings, request), who, request.app.state.runtime)
         body["providers"] = offered
         return JSONResponse(body, headers={"Cache-Control": "no-store"})
+
+    # -- runtime settings (Anthropic key, speech speed) --------------------------------------------
+
+    def authorized_or_error(request: Request) -> Identity | Response:
+        who = current_identity(request)
+        if who is None:
+            return JSONResponse({"detail": "unauthorized"}, status_code=401)
+        if not is_authorized(settings, who):
+            return JSONResponse({"detail": "forbidden"}, status_code=403)
+        return who
+
+    @router.put("/panel/settings")
+    async def panel_settings_update(body: SettingsUpdate, request: Request) -> Response:
+        who = authorized_or_error(request)
+        if isinstance(who, Response):
+            return who
+        runtime: Runtime = request.app.state.runtime
+        fields = body.model_fields_set
+        try:
+            described = await runtime.update(
+                anthropic_api_key=body.anthropic_api_key if "anthropic_api_key" in fields else UNSET,
+                speech_speed=body.speech_speed if "speech_speed" in fields else UNSET,
+            )
+        except ValueError as exc:
+            return JSONResponse({"detail": str(exc)}, status_code=422)
+        except OSError as exc:
+            log.error("panel: cannot persist settings to %s: %s", runtime.store.path, exc)
+            return JSONResponse({"detail": f"could not write {runtime.store.path}: {type(exc).__name__}"}, status_code=500)
+        log.info("panel: settings updated by %s %s (%s): %s", who.provider, who.id, who.name, sorted(fields))
+        return JSONResponse({"status": "ok", "runtime": described}, headers={"Cache-Control": "no-store"})
+
+    @router.post("/panel/settings/test-reader")
+    async def panel_settings_test_reader(request: Request) -> Response:
+        who = authorized_or_error(request)
+        if isinstance(who, Response):
+            return who
+        result = await request.app.state.runtime.check_reader()
+        return JSONResponse(result, headers={"Cache-Control": "no-store"})
 
     @router.post("/panel/logout")
     async def panel_logout(request: Request) -> Response:

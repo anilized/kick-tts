@@ -29,13 +29,14 @@ _DEFAULTS = dict(
 
 
 @pytest.fixture
-def make_settings(monkeypatch):
+def make_settings(monkeypatch, tmp_path):
     """Factory for hermetic Settings: ignores the developer's .env and every Settings env var."""
     for name in Settings.model_fields:
         monkeypatch.delenv(name, raising=False)
 
     def _make(**overrides) -> Settings:
-        kwargs = {**_DEFAULTS, **overrides}
+        # panel overrides go to a per-test file, never to ./.cache
+        kwargs = {**_DEFAULTS, "PANEL_STATE_PATH": tmp_path / "panel-settings.json", **overrides}
         return Settings(_env_file=None, **kwargs)
 
     return _make

@@ -84,6 +84,11 @@
     flex: 1 1 200px; min-width: 0; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: #0b0d12; color: var(--text); font: inherit;
   }
   input[type=text].short { flex: 0 1 140px; }
+  input[type=password] {
+    flex: 1 1 260px; min-width: 0; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: #0b0d12; color: var(--text); font: inherit;
+  }
+  input[type=range] { flex: 1 1 220px; min-width: 0; accent-color: var(--kick); }
+  .ok-text { color: var(--ok); } .bad-text { color: var(--bad); }
   .stat { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
   .stat div { background: var(--panel-2); border-radius: 10px; padding: 10px 12px; }
   .stat .lbl { color: var(--muted); font-size: 12px; }
@@ -156,6 +161,35 @@
         <h2>Channel triggers</h2>
         <p class="sub">What is read aloud, from <code>app/settings.yaml</code>.</p>
         <ul id="channel-settings" class="setting-list"></ul>
+      </div>
+
+      <div class="card wide">
+        <h2>Voice &amp; reader</h2>
+        <p class="sub">Changes apply immediately and survive restarts (stored on the server, not in the Secret). A value set here wins over the environment and <code>settings.yaml</code>.</p>
+        <dl class="kv">
+          <dt>Speech speed</dt>
+          <dd>
+            <div class="row" style="margin:0">
+              <input id="speed-range" type="range" min="0.25" max="4" step="0.05" aria-label="speech speed">
+              <input id="speed-num" type="text" class="short" inputmode="decimal" aria-label="speech speed value">
+              <button id="btn-speed-save" class="btn sm" type="button">Save</button>
+              <button id="btn-speed-reset" class="btn sm" type="button">Reset</button>
+            </div>
+            <p id="speed-src" class="note" style="margin:4px 0 0"></p>
+          </dd>
+          <dt>Anthropic API key</dt>
+          <dd>
+            <p id="key-status" class="note" style="margin:0 0 6px"></p>
+            <div class="row" style="margin:0">
+              <input id="key-input" type="password" placeholder="sk-ant-…" autocomplete="off" spellcheck="false" aria-label="Anthropic API key">
+              <button id="btn-key-save" class="btn sm" type="button">Save key</button>
+              <button id="btn-key-test" class="btn sm" type="button">Test</button>
+              <button id="btn-key-clear" class="btn sm danger" type="button">Remove</button>
+            </div>
+            <p class="note">With a key, Claude rewrites each chat message into speakable Turkish before TTS (chat slang, acronyms, emotes); without one the rules cleaner is used. The key is stored on the server and never shown again in full.</p>
+          </dd>
+        </dl>
+        <p id="rt-msg" class="note"></p>
       </div>
 
       <div class="card wide">
@@ -424,11 +458,87 @@
     $('snippets').setAttribute('data-value', snippets);
     renderSecret('snippets');
 
+    renderRuntime(me.runtime);
     show('view-panel');
     pollStatus();
     clearInterval(state.timer);
     state.timer = setInterval(pollStatus, 5000);
   }
+
+  // -- voice & reader (runtime overrides) -----------------------------------------------------------
+
+  function renderRuntime(rt) {
+    if (!rt) return;
+    var sp = rt.speech_speed;
+    $('speed-range').min = String(sp.min);
+    $('speed-range').max = String(sp.max);
+    $('speed-range').value = String(sp.value);
+    $('speed-num').value = String(sp.value);
+    $('speed-src').textContent = sp.source === 'panel'
+      ? 'Set on the panel. Reset returns to the settings.yaml value (' + sp.default + ').' + (rt.engine_speed_applied ? '' : ' Applied as soon as the engine is ready.')
+      : 'From settings.yaml (' + sp.default + '). 1.0 is the natural pace, lower is slower.';
+    var k = rt.anthropic_api_key;
+    var status;
+    if (k.configured) {
+      status = 'LLM reader active (' + rt.reader_model + '), key ' + (k.source === 'panel' ? 'set on the panel' : 'from the Secret') + (k.hint ? ' · ' + k.hint : '') + '.';
+      if (k.source === 'env') status += ' Saving a key here overrides it.';
+    } else {
+      status = 'No key: the rules cleaner reads the chat (reader "' + rt.reader + '"). Paste a key to enable the Claude reader.';
+    }
+    $('key-status').textContent = status;
+    $('btn-key-clear').disabled = k.source !== 'panel';
+    $('btn-key-test').disabled = !k.configured;
+    $('btn-speed-reset').disabled = sp.source !== 'panel';
+  }
+
+  function rtMessage(text, cls) {
+    var m = $('rt-msg');
+    m.textContent = text;
+    m.className = 'note ' + (cls || '');
+  }
+
+  function saveRuntime(patch, onDone) {
+    rtMessage('Saving…');
+    return api('panel/settings', { method: 'PUT', json: patch }).then(function (r) {
+      return r.json().then(function (b) {
+        if (r.status === 401 || r.status === 403) { location.replace('panel'); return; }
+        if (r.status !== 200) { rtMessage('Not saved: ' + (b.detail || ('HTTP ' + r.status)), 'bad-text'); return; }
+        renderRuntime(b.runtime);
+        rtMessage('Saved.', 'ok-text');
+        pollStatus();
+        if (onDone) onDone(b.runtime);
+      });
+    }).catch(function () { rtMessage('Not saved: request failed', 'bad-text'); });
+  }
+
+  function testReader() {
+    rtMessage('Testing the key…');
+    return api('panel/settings/test-reader', { method: 'POST' }).then(function (r) { return r.json(); }).then(function (b) {
+      if (b.ok) rtMessage('Reader "' + b.reader + '": ' + b.detail, 'ok-text');
+      else rtMessage('Reader "' + b.reader + '" failed: ' + (b.detail || 'unknown error') + '. Chat is read by the rules cleaner until the key works.', 'bad-text');
+    }).catch(function () { rtMessage('Test failed: request failed', 'bad-text'); });
+  }
+
+  $('speed-range').addEventListener('input', function () { $('speed-num').value = $('speed-range').value; });
+  $('speed-num').addEventListener('input', function () {
+    var v = parseFloat($('speed-num').value.replace(',', '.'));
+    if (!isNaN(v)) $('speed-range').value = String(v);
+  });
+  $('btn-speed-save').addEventListener('click', function () {
+    var v = parseFloat($('speed-num').value.replace(',', '.'));
+    if (isNaN(v)) { rtMessage('Speed must be a number between 0.25 and 4.', 'bad-text'); return; }
+    saveRuntime({ speech_speed: v });
+  });
+  $('btn-speed-reset').addEventListener('click', function () { saveRuntime({ speech_speed: null }); });
+  $('btn-key-save').addEventListener('click', function () {
+    var v = $('key-input').value.trim();
+    if (!v) { rtMessage('Paste a key first (or use Remove to drop the panel key).', 'bad-text'); $('key-input').focus(); return; }
+    saveRuntime({ anthropic_api_key: v }, function () { $('key-input').value = ''; testReader(); });
+  });
+  $('btn-key-clear').addEventListener('click', function () {
+    if (confirm('Remove the key set on the panel? The reader falls back to the Secret key, or to rules-only.')) saveRuntime({ anthropic_api_key: null });
+  });
+  $('btn-key-test').addEventListener('click', testReader);
 
   // -- live -----------------------------------------------------------------------------------------
 

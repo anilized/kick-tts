@@ -13,6 +13,9 @@ AMPLITUDE = 0.3
 class FakeEngine:
     name = "fake"
 
+    def __init__(self) -> None:
+        self.speed = 1.0  # mirrors EmaEngine.speed so the panel's speed override is exercised in dev/tests
+
     def synth(self, text: str, sample_rate: int = 24000) -> bytes:
         n = int(DURATION_S * sample_rate)
         t = np.arange(n, dtype=np.float32) / float(sample_rate)
