@@ -23,3 +23,10 @@ SPEECH_SPEED: 0.85
 # MAX_QUEUE: 50
 # MAX_ITEM_AGE_S: 600
 # BLOCKLIST: ""                # comma-separated words; matching items are dropped, never censored
+
+# --- panel (/panel) -----------------------------------------------------------------------------
+# Who sees the OBS settings and the keys after logging in with Kick or Discord, besides the Kick account
+# whose user id is KICK_BROADCASTER_USER_ID (always allowed). Comma-separated kick:<user id or name>,
+# discord:<user id or name>. Names are matched case-insensitively; ids are safer (a denied login shows
+# the exact entry to add).
+PANEL_ALLOWED_USERS: "kick:anildev"

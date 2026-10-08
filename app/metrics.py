@@ -27,6 +27,7 @@ tts_synth_latency_seconds = Histogram(
     buckets=(0.1, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 15.0, 30.0),
 )
 tts_failures_total = Counter("tts_failures_total", "Unexpected failures by pipeline stage", ["stage"])
+tts_panel_logins_total = Counter("tts_panel_logins_total", "Panel login attempts by provider and result", ["provider", "result"])
 
 
 def get_value(metric, **labels) -> float:

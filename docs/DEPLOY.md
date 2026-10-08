@@ -88,7 +88,8 @@ cp deploy/secret.example.yaml deploy/secret.local.yaml   # *.local.yaml is git-i
 | `CONTROL_TOKEN` | Bearer token for `/speak`, `/skip`, `/clear`, `/pause`, `/resume`, `/status` |
 | `OVERLAY_KEY` | `?key=` for `/overlay` and `/ws` (part of the OBS browser-source URL) |
 | `ANTHROPIC_API_KEY` | LLM reader. Delete the line for rules-only mode |
-| `KICK_CLIENT_ID`, `KICK_CLIENT_SECRET` | Kick developer app, used by the `kick-tts-subscribe` CronJob |
+| `KICK_CLIENT_ID`, `KICK_CLIENT_SECRET` | Kick developer app, used by the `kick-tts-subscribe` CronJob and by "Continue with Kick" on `/panel` (redirect URL `https://anildev.io/tts/auth/kick/callback` in the portal) |
+| `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` | Discord application for "Continue with Discord" on `/panel` (redirect `https://anildev.io/tts/auth/discord/callback`). Delete both lines to hide the button |
 | `KICK_BROADCASTER_USER_ID` | `0` accepts any broadcaster; set the real id after `kick_subscribe.py resolve` (see `docs/KICK_SETUP.md`) |
 
 Generate tokens with `python -c "import secrets; print(secrets.token_urlsafe(32))"`. Never commit the filled file.
@@ -170,6 +171,7 @@ curl -i https://anildev.io/tts/healthz            # 200
 curl -i https://anildev.io/tts/readyz             # 200 once warm
 curl -i "https://anildev.io/tts/overlay"          # 403 (no key)
 curl -i "https://anildev.io/tts/overlay?key=<OVERLAY_KEY>"   # 200, HTML
+curl -i https://anildev.io/tts/panel              # 200, the login page; /panel/me is 401 until logged in
 curl -s -X POST https://anildev.io/tts/speak -H "Authorization: Bearer <CONTROL_TOKEN>" \
      -H "Content-Type: application/json" -d '{"text":"merhaba test","user":"anil"}'
 ```

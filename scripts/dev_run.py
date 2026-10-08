@@ -33,6 +33,7 @@ def main() -> None:
 
     print(f"kick-tts dev server  (FAKE_ENGINE={os.environ['FAKE_ENGINE']}, threads={threads})")
     print(f"  overlay : {base}/overlay?key={overlay_key}")
+    print(f"  panel   : {base}/panel   (login needs KICK_CLIENT_ID/SECRET or DISCORD_CLIENT_ID/SECRET in .env)")
     print(f"  health  : {base}/healthz   ready: {base}/readyz   metrics: {base}/metrics")
     print(f"  CONTROL_TOKEN={control_token}")
     print(f"  OVERLAY_KEY={overlay_key}")

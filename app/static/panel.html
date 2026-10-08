@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>kick-tts panel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #1f232c;
+    --line: #2a2f3a;
+    --text: #e8eaf0;
+    --muted: #9aa3b2;
+    --kick: #53fc18;
+    --kick-ink: #0b1a05;
+    --discord: #5865f2;
+    --ok: #3ddc84;
+    --warn: #f5b942;
+    --bad: #ff5c5c;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); }
+  body { font: 15px/1.5 "Segoe UI", Roboto, Helvetica, Arial, sans-serif; min-height: 100vh; }
+  a { color: inherit; }
+  header {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 14px 24px; border-bottom: 1px solid var(--line); background: var(--panel);
+    position: sticky; top: 0; z-index: 2;
+  }
+  header h1 { margin: 0; font-size: 18px; letter-spacing: 0.3px; }
+  header h1 span { color: var(--kick); }
+  .who { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
+  .who img { width: 28px; height: 28px; border-radius: 50%; background: var(--panel-2); }
+  .who strong { color: var(--text); }
+  main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 64px; }
+  .hidden { display: none !important; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; }
+  .card.wide { grid-column: 1 / -1; }
+  .card h2 { margin: 0 0 6px; font-size: 16px; }
+  .card p.sub { margin: 0 0 14px; color: var(--muted); font-size: 13px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px; border: 1px solid var(--line); color: var(--muted); }
+  .chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .chip.ok .dot { background: var(--ok); } .chip.warn .dot { background: var(--warn); } .chip.bad .dot { background: var(--bad); }
+  .login { max-width: 460px; margin: 48px auto 0; text-align: center; }
+  .login h2 { font-size: 22px; margin: 0 0 6px; }
+  .login p { color: var(--muted); margin: 0 0 22px; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;
+    padding: 9px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2);
+    color: var(--text); font: inherit; font-weight: 600; text-decoration: none; line-height: 1.2;
+  }
+  .btn:hover { filter: brightness(1.12); }
+  .btn:disabled { opacity: 0.5; cursor: default; filter: none; }
+  .btn.sm { padding: 5px 10px; font-size: 13px; font-weight: 500; }
+  .btn.block { width: 100%; padding: 13px 16px; font-size: 16px; margin-bottom: 12px; }
+  .btn.kick { background: var(--kick); color: var(--kick-ink); border-color: var(--kick); }
+  .btn.discord { background: var(--discord); color: #fff; border-color: var(--discord); }
+  .btn.danger { border-color: #5a2a2a; color: #ffb3b3; }
+  .btn .glyph { font-weight: 900; font-size: 18px; line-height: 1; }
+  .kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; align-items: center; font-size: 14px; }
+  .kv dt { color: var(--muted); margin: 0; }
+  .kv dd { margin: 0; }
+  .secret { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  code, .mono { font-family: Consolas, "SF Mono", Menlo, monospace; font-size: 13px; }
+  .box {
+    flex: 1 1 220px; min-width: 0; padding: 7px 10px; border-radius: 8px; background: #0b0d12; border: 1px solid var(--line);
+    overflow-wrap: anywhere; word-break: break-all; color: #cfd6e4;
+  }
+  .box.masked { letter-spacing: 2px; color: var(--muted); }
+  pre.box { margin: 0; white-space: pre-wrap; }
+  .setting-list { list-style: none; margin: 0; padding: 0; }
+  .setting-list li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px dashed var(--line); font-size: 14px; }
+  .setting-list li:last-child { border-bottom: 0; }
+  .setting-list .val { color: var(--text); font-weight: 600; }
+  .on { color: var(--ok); } .off { color: var(--muted); }
+  ol.steps { margin: 10px 0 0; padding-left: 20px; color: var(--muted); font-size: 14px; }
+  ol.steps li { margin: 4px 0; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+  input[type=text] {
+    flex: 1 1 200px; min-width: 0; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: #0b0d12; color: var(--text); font: inherit;
+  }
+  input[type=text].short { flex: 0 1 140px; }
+  .stat { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+  .stat div { background: var(--panel-2); border-radius: 10px; padding: 10px 12px; }
+  .stat .lbl { color: var(--muted); font-size: 12px; }
+  .stat .num { font-size: 22px; font-weight: 700; }
+  .note { font-size: 13px; color: var(--muted); margin: 10px 0 0; }
+  .alert { border-radius: 10px; padding: 10px 14px; margin: 0 0 16px; font-size: 14px; border: 1px solid; }
+  .alert.bad { border-color: #5a2a2a; background: #2a1414; color: #ffb3b3; }
+  .alert.warn { border-color: #5a4a1a; background: #2a2214; color: #ffe0a3; }
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #2a2f3a; color: #fff; padding: 8px 14px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+  footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 32px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>kick-tts <span>panel</span></h1>
+  <div id="header-right" class="who"></div>
+</header>
+<main>
+  <div id="alert" class="alert hidden"></div>
+  <section id="view-loading"><p class="note">Loading…</p></section>
+  <section id="view-login" class="login hidden">
+    <h2>Sign in to get your OBS settings</h2>
+    <p>Log in with the account that owns this channel. You will get the overlay URL, the keys and the live controls.</p>
+    <div id="login-buttons"></div>
+    <p id="login-none" class="note hidden">No login provider is configured on this instance. Set KICK_CLIENT_ID / KICK_CLIENT_SECRET and/or DISCORD_CLIENT_ID / DISCORD_CLIENT_SECRET.</p>
+  </section>
+  <section id="view-denied" class="login hidden">
+    <h2>This account is not allowed here</h2>
+    <p id="denied-text"></p>
+    <p class="note">To allow it, the owner adds this entry to <code>PANEL_ALLOWED_USERS</code> in <code>app/settings.yaml</code>:</p>
+    <div class="secret" style="justify-content:center"><code id="denied-entry" class="box" style="flex:0 1 auto"></code><button id="denied-copy" class="btn sm" type="button">Copy</button></div>
+    <p style="margin-top:22px"><button id="denied-logout" class="btn" type="button">Log out</button></p>
+  </section>
+  <section id="view-panel" class="hidden">
+    <div class="grid">
+      <div class="card wide">
+        <h2>OBS browser source</h2>
+        <p class="sub">Add a <b>Browser</b> source in OBS and use these values. The URL contains your overlay key: do not show it on stream.</p>
+        <dl class="kv">
+          <dt>URL</dt>
+          <dd class="secret"><code id="overlay-url" class="box masked"></code><button class="btn sm" type="button" data-reveal="overlay-url">Show</button><button class="btn sm" type="button" data-copy="overlay-url">Copy</button></dd>
+          <dt>Debug URL</dt>
+          <dd class="secret"><code id="overlay-url-debug" class="box masked"></code><button class="btn sm" type="button" data-reveal="overlay-url-debug">Show</button><button class="btn sm" type="button" data-copy="overlay-url-debug">Copy</button></dd>
+        </dl>
+        <ul id="obs-settings" class="setting-list" style="margin-top:12px"></ul>
+        <ol class="steps">
+          <li>Sources → <b>+</b> → Browser. Paste the URL, set width and height as above, leave the custom CSS empty.</li>
+          <li>Tick <b>Control audio via OBS</b> so the TTS audio gets its own track in the Audio Mixer.</li>
+          <li>Turn <b>off</b> "Shutdown source when not visible" and "Refresh browser when scene becomes active", so the WebSocket stays connected.</li>
+          <li>Press <b>Speak</b> in the live card below: you should hear the voice and see the caption.</li>
+        </ol>
+      </div>
+
+      <div class="card">
+        <h2>Keys</h2>
+        <p class="sub">Overlay key for the browser source, control token for Stream Deck / Streamer.bot / scripts.</p>
+        <dl class="kv">
+          <dt>Overlay key</dt>
+          <dd class="secret"><code id="overlay-key" class="box masked"></code><button class="btn sm" type="button" data-reveal="overlay-key">Show</button><button class="btn sm" type="button" data-copy="overlay-key">Copy</button></dd>
+          <dt>Control token</dt>
+          <dd class="secret"><code id="control-token" class="box masked"></code><button class="btn sm" type="button" data-reveal="control-token">Show</button><button class="btn sm" type="button" data-copy="control-token">Copy</button></dd>
+          <dt>Base URL</dt>
+          <dd><code id="base-url" class="box" style="display:block"></code></dd>
+        </dl>
+        <p class="note">Keys live in the <code>kick-tts-secrets</code> Secret. Rotate them there and restart the pod; the panel always shows the current values.</p>
+      </div>
+
+      <div class="card">
+        <h2>Channel triggers</h2>
+        <p class="sub">What is read aloud, from <code>app/settings.yaml</code>.</p>
+        <ul id="channel-settings" class="setting-list"></ul>
+      </div>
+
+      <div class="card wide">
+        <h2>Live</h2>
+        <p class="sub">Service status, refreshed every 5 s, and the control endpoints used with your token.</p>
+        <div class="stat">
+          <div><div class="lbl">Readiness</div><div class="num" id="st-readiness">–</div></div>
+          <div><div class="lbl">Queue</div><div class="num" id="st-queue">–</div></div>
+          <div><div class="lbl">Overlay clients</div><div class="num" id="st-clients">–</div></div>
+          <div><div class="lbl">Paused</div><div class="num" id="st-paused">–</div></div>
+          <div><div class="lbl">Engine</div><div class="num mono" id="st-engine" style="font-size:15px">–</div></div>
+          <div><div class="lbl">Reader</div><div class="num mono" id="st-reader" style="font-size:15px">–</div></div>
+        </div>
+        <div class="row">
+          <input id="speak-text" type="text" placeholder="selam millet, test bir iki üç" maxlength="200">
+          <input id="speak-user" type="text" class="short" placeholder="user" value="panel">
+          <button id="btn-speak" class="btn" type="button">Speak</button>
+        </div>
+        <div class="row">
+          <button id="btn-skip" class="btn" type="button">Skip</button>
+          <button id="btn-pause" class="btn" type="button">Pause</button>
+          <button id="btn-resume" class="btn" type="button">Resume</button>
+          <button id="btn-clear" class="btn danger" type="button">Clear queue</button>
+          <span id="live-msg" class="note" style="margin:0"></span>
+        </div>
+      </div>
+
+      <div class="card wide">
+        <h2>Stream Deck / scripts</h2>
+        <p class="sub">Every control call is <code>Authorization: Bearer &lt;control token&gt;</code>. Reveal to fill in your token.</p>
+        <div class="secret" style="margin-bottom:8px"><button class="btn sm" type="button" data-reveal="snippets">Show with token</button><button class="btn sm" type="button" data-copy="snippets">Copy</button></div>
+        <pre id="snippets" class="box masked"></pre>
+      </div>
+    </div>
+  </section>
+  <footer>kick-tts · the overlay always labels the audio as TTS</footer>
+</main>
+<div id="toast" class="toast"></div>
+<script>
+(function () {
+  'use strict';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var state = { me: null, token: null, revealed: {}, timer: null };
+  var ERRORS = {
+    denied: 'Login was cancelled at the provider.',
+    state: 'Login state did not match (cookie missing or expired). Try again.',
+    exchange: 'The provider rejected the login (token or profile request failed). Check the client id, secret and the redirect URL.'
+  };
+
+  function show(id) {
+    ['view-loading', 'view-login', 'view-denied', 'view-panel'].forEach(function (v) {
+      $(v).classList.toggle('hidden', v !== id);
+    });
+  }
+
+  function el(tag, attrs, children) {
+    var node = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (k) {
+      if (k === 'class') node.className = attrs[k];
+      else if (k === 'text') node.textContent = attrs[k];
+      else node.setAttribute(k, attrs[k]);
+    });
+    (children || []).forEach(function (c) { node.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+    return node;
+  }
+
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function () { t.classList.remove('show'); }, 1600);
+  }
+
+  function alertBox(kind, msg) {
+    var a = $('alert');
+    if (!msg) { a.classList.add('hidden'); a.textContent = ''; return; }
+    a.className = 'alert ' + kind;
+    a.textContent = msg;
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text).then(function () { toast('Copied'); }, function () { fallbackCopy(text); });
+    }
+    fallbackCopy(text);
+  }
+
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); toast('Copied'); } catch (e) { toast('Copy failed'); }
+    document.body.removeChild(ta);
+  }
+
+  // Secrets are kept on the element (data-value) and masked until "Show" is pressed; copy always copies the real value.
+  function setSecret(id, value) {
+    var node = $(id);
+    node.setAttribute('data-value', value);
+    renderSecret(id);
+  }
+
+  function renderSecret(id) {
+    var node = $(id);
+    var value = node.getAttribute('data-value') || '';
+    if (state.revealed[id]) { node.textContent = value; node.classList.remove('masked'); }
+    else { node.textContent = value ? '••••••••••••••••' : ''; node.classList.add('masked'); }
+  }
+
+  document.addEventListener('click', function (ev) {
+    var btn = ev.target.closest ? ev.target.closest('button') : null;
+    if (!btn) return;
+    var rev = btn.getAttribute('data-reveal');
+    var cp = btn.getAttribute('data-copy');
+    if (rev) {
+      state.revealed[rev] = !state.revealed[rev];
+      btn.textContent = state.revealed[rev] ? 'Hide' : (rev === 'snippets' ? 'Show with token' : 'Show');
+      renderSecret(rev);
+    } else if (cp) {
+      copyText($(cp).getAttribute('data-value') || '');
+    }
+  });
+
+  // -- api ------------------------------------------------------------------------------------------
+  // All URLs are relative to this page (/panel or /tts/panel), never absolute.
+
+  function api(path, opts) {
+    opts = opts || {};
+    var headers = opts.headers || {};
+    if (opts.bearer && state.token) headers['Authorization'] = 'Bearer ' + state.token;
+    if (opts.json !== undefined) { headers['Content-Type'] = 'application/json; charset=utf-8'; }
+    return fetch(path, {
+      method: opts.method || 'GET',
+      headers: headers,
+      credentials: 'same-origin',
+      cache: 'no-store',
+      body: opts.json !== undefined ? JSON.stringify(opts.json) : undefined
+    });
+  }
+
+  function loadMe() {
+    return api('panel/me').then(function (r) {
+      return r.json().then(function (body) { return { status: r.status, body: body }; });
+    }).then(function (res) {
+      if (res.status === 401) { renderLogin(res.body.providers || []); return; }
+      if (res.status !== 200) { alertBox('bad', 'Unexpected response from the service (HTTP ' + res.status + ').'); show('view-login'); return; }
+      state.me = res.body;
+      if (!res.body.authorized) { renderDenied(res.body.user); return; }
+      renderPanel(res.body);
+    }).catch(function () {
+      alertBox('bad', 'Could not reach the service.');
+      show('view-login');
+    });
+  }
+
+  function logout() {
+    api('panel/logout', { method: 'POST' }).then(function () { location.replace('panel'); });
+  }
+
+  // -- views ----------------------------------------------------------------------------------------
+
+  function renderHeader(user) {
+    var right = $('header-right');
+    clear(right);
+    if (!user) return;
+    if (user.avatar) {
+      var img = el('img', { alt: '', referrerpolicy: 'no-referrer' });
+      img.src = user.avatar;
+      right.appendChild(img);
+    }
+    right.appendChild(el('span', {}, [el('strong', { text: user.name }), ' via ' + user.provider]));
+    var btn = el('button', { class: 'btn sm', type: 'button', text: 'Log out' });
+    btn.addEventListener('click', logout);
+    right.appendChild(btn);
+  }
+
+  function renderLogin(providers) {
+    renderHeader(null);
+    var box = $('login-buttons');
+    clear(box);
+    var labels = { kick: 'Continue with Kick', discord: 'Continue with Discord' };
+    var glyph = { kick: 'K', discord: 'D' };
+    providers.forEach(function (p) {
+      if (!labels[p]) return;
+      box.appendChild(el('a', { class: 'btn block ' + p, href: 'auth/{p}/login'.replace('{p}', p) }, [el('span', { class: 'glyph', text: glyph[p] }), labels[p]]));
+    });
+    $('login-none').classList.toggle('hidden', providers.length > 0);
+    show('view-login');
+  }
+
+  function renderDenied(user) {
+    renderHeader(user);
+    $('denied-text').textContent = 'You are logged in as ' + user.name + ' (' + user.provider + ' id ' + user.id + '), but this account is not the owner of this channel and is not on the allow list.';
+    var entry = user.provider + ':' + user.id;
+    $('denied-entry').textContent = entry;
+    $('denied-entry').setAttribute('data-value', entry);
+    show('view-denied');
+  }
+
+  function settingItem(label, value, cls) {
+    return el('li', {}, [el('span', { text: label }), el('span', { class: 'val ' + (cls || ''), text: value })]);
+  }
+
+  function onOff(v) { return v ? 'on' : 'off'; }
+
+  function renderPanel(me) {
+    var s = me.settings;
+    state.token = s.control_token;
+    renderHeader(me.user);
+
+    setSecret('overlay-url', s.overlay_url);
+    setSecret('overlay-url-debug', s.overlay_url + '&debug=1');
+    setSecret('overlay-key', s.overlay_key);
+    setSecret('control-token', s.control_token);
+    $('base-url').textContent = s.base_url;
+
+    var obs = $('obs-settings');
+    clear(obs);
+    obs.appendChild(settingItem('Width', String(s.obs.width)));
+    obs.appendChild(settingItem('Height', String(s.obs.height)));
+    obs.appendChild(settingItem('Control audio via OBS', onOff(s.obs.control_audio_via_obs), s.obs.control_audio_via_obs ? 'on' : 'off'));
+    obs.appendChild(settingItem('Shutdown source when not visible', onOff(s.obs.shutdown_source_when_not_visible), s.obs.shutdown_source_when_not_visible ? 'on' : 'off'));
+    obs.appendChild(settingItem('Refresh browser when scene becomes active', onOff(s.obs.refresh_browser_when_scene_becomes_active), s.obs.refresh_browser_when_scene_becomes_active ? 'on' : 'off'));
+    obs.appendChild(settingItem('Custom CSS', s.obs.custom_css ? s.obs.custom_css : '(empty, the page is transparent)'));
+
+    var ch = $('channel-settings');
+    var c = s.channel;
+    clear(ch);
+    ch.appendChild(settingItem('Broadcaster user id', c.broadcaster_user_id ? String(c.broadcaster_user_id) : 'any (0)'));
+    ch.appendChild(settingItem('Kicks gifts read from', c.min_kicks + ' kick' + (c.min_kicks === 1 ? '' : 's')));
+    ch.appendChild(settingItem('Channel-point reward title', c.reward_title));
+    ch.appendChild(settingItem('Chat command', c.command_prefix + ' <text>'));
+    ch.appendChild(settingItem('Command roles', c.command_roles.join(', ')));
+    ch.appendChild(settingItem('Command cooldown', c.command_cooldown_s + ' s per user'));
+    ch.appendChild(settingItem('Max text / queue', c.max_text_chars + ' chars / ' + c.max_queue + ' items'));
+    ch.appendChild(settingItem('Speech speed', String(c.speech_speed)));
+
+    var u = function (path) { return s.base_url + '/' + path; };
+    var auth = '-H "Authorization: Bearer ' + s.control_token + '"';
+    var snippets = [
+      '# speak',
+      'curl -X POST ' + u('speak') + ' ' + auth + ' \\',
+      '  -H "Content-Type: application/json" -d \'{"text":"selam millet","user":"anil"}\'',
+      '',
+      '# skip / clear / pause / resume',
+      'curl -X POST ' + u('skip') + ' ' + auth,
+      'curl -X POST ' + u('clear') + ' ' + auth,
+      'curl -X POST ' + u('pause') + ' ' + auth,
+      'curl -X POST ' + u('resume') + ' ' + auth,
+      '',
+      '# status',
+      'curl ' + u('status') + ' ' + auth,
+      '',
+      '# PowerShell',
+      'Invoke-RestMethod -Method Post -Uri ' + u('speak') + ' -Headers @{Authorization=\'Bearer ' + s.control_token + '\'} `',
+      '  -ContentType \'application/json; charset=utf-8\' -Body \'{"text":"selam millet","user":"anil"}\''
+    ].join('\n');
+    $('snippets').setAttribute('data-value', snippets);
+    renderSecret('snippets');
+
+    show('view-panel');
+    pollStatus();
+    clearInterval(state.timer);
+    state.timer = setInterval(pollStatus, 5000);
+  }
+
+  // -- live -----------------------------------------------------------------------------------------
+
+  function pollStatus() {
+    if (!state.token) return;
+    api('status', { bearer: true }).then(function (r) {
+      if (r.status === 401) { state.token = null; alertBox('warn', 'The control token changed; reload the page.'); return null; }
+      return r.json();
+    }).then(function (st) {
+      if (!st) return;
+      $('st-readiness').textContent = st.readiness + (st.error ? ' (' + st.error + ')' : '');
+      $('st-readiness').style.color = st.readiness === 'ready' ? 'var(--ok)' : (st.readiness === 'failed' ? 'var(--bad)' : 'var(--warn)');
+      $('st-queue').textContent = String(st.queue_length);
+      $('st-clients').textContent = String(st.clients);
+      $('st-clients').style.color = st.clients > 0 ? 'var(--ok)' : 'var(--warn)';
+      $('st-paused').textContent = st.paused ? 'yes' : 'no';
+      $('st-engine').textContent = st.engine || '–';
+      $('st-reader').textContent = st.reader || '–';
+    }).catch(function () {
+      $('st-readiness').textContent = 'unreachable';
+      $('st-readiness').style.color = 'var(--bad)';
+    });
+  }
+
+  function control(path, json) {
+    var msg = $('live-msg');
+    msg.textContent = '…';
+    return api(path, { method: 'POST', bearer: true, json: json }).then(function (r) {
+      return r.json().then(function (b) {
+        var text = path + ': ' + (b.status || r.status);
+        if (b.reason) text += ' (' + b.reason + ')';
+        if (b.cleared !== undefined) text += ', cleared ' + b.cleared;
+        if (b.queue_length !== undefined) text += ', queue ' + b.queue_length;
+        msg.textContent = text;
+        pollStatus();
+      });
+    }).catch(function () { msg.textContent = path + ': request failed'; });
+  }
+
+  $('btn-speak').addEventListener('click', function () {
+    var text = $('speak-text').value.trim();
+    if (!text) { $('speak-text').focus(); return; }
+    control('speak', { text: text, user: $('speak-user').value.trim() || 'panel' });
+  });
+  $('speak-text').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') $('btn-speak').click(); });
+  $('btn-skip').addEventListener('click', function () { control('skip'); });
+  $('btn-pause').addEventListener('click', function () { control('pause'); });
+  $('btn-resume').addEventListener('click', function () { control('resume'); });
+  $('btn-clear').addEventListener('click', function () { if (confirm('Empty the queue and stop the current item?')) control('clear'); });
+  $('denied-logout').addEventListener('click', logout);
+  $('denied-copy').addEventListener('click', function () { copyText($('denied-entry').getAttribute('data-value') || ''); });
+
+  // -- boot -----------------------------------------------------------------------------------------
+
+  var params = new URLSearchParams(location.search);
+  var err = params.get('error');
+  if (err) {
+    alertBox('bad', ERRORS[err] || 'Login failed.');
+    if (history.replaceState) history.replaceState(null, '', 'panel');
+  }
+  loadMe();
+})();
+</script>
+</body>
+</html>

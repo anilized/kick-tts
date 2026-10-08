@@ -37,6 +37,7 @@ SKIP_DIRS = {".git", ".venv", "__pycache__", ".pytest_cache", ".mypy_cache", ".r
 # Keys in .env.example that would be secrets when filled in.
 ENV_SECRET_KEYS = {
     "CONTROL_TOKEN", "OVERLAY_KEY", "ANTHROPIC_API_KEY", "KICK_CLIENT_ID", "KICK_CLIENT_SECRET", "KICK_PUBLIC_KEY_PEM",
+    "DISCORD_CLIENT_ID", "DISCORD_CLIENT_SECRET", "SESSION_SECRET",
 }
 PLACEHOLDER_WORDS = ("change-me", "change_me", "your-", "placeholder", "example")
 

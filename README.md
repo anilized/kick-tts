@@ -68,8 +68,9 @@ With the fake engine you hear a short 440 Hz tone and the overlay shows `🔊 TT
 
 ## Endpoints
 
-All paths are relative and nothing ever redirects, so the service works unchanged behind the
-`/tts` ingress rewrite.
+All paths are relative and no route redirects to an absolute path of its own, so the service works
+unchanged behind the `/tts` ingress rewrite (the OAuth routes redirect to the provider and back with a
+relative `Location`).
 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
@@ -84,6 +85,11 @@ All paths are relative and nothing ever redirects, so the service works unchange
 | POST | `/clear` | bearer | Empty the queue and stop the current item. |
 | POST | `/pause`, `/resume` | bearer | Pause/resume dequeueing (the overlay is told via `{type: "paused"}`). |
 | GET | `/status` | bearer | `{queue_length, paused, clients, readiness, error, engine, reader}`. |
+| GET | `/panel` | none | The streamer panel page (login with Kick or Discord; see [Panel](#panel)). |
+| GET | `/panel/me` | session cookie | 401 `{detail, providers}` when logged out; else identity, `authorized`, and the OBS settings + keys when authorized. |
+| POST | `/panel/logout` | session cookie | Clears the session cookie. |
+| GET | `/auth/{kick,discord}/login` | none | 302 to the provider (Kick with PKCE); 404 when that provider is not configured. |
+| GET | `/auth/{kick,discord}/callback` | login cookie | OAuth callback; sets the session cookie and 302s to `../../panel` (relative). |
 
 Bearer auth is `Authorization: Bearer <CONTROL_TOKEN>`; both the token and the overlay key are compared
 in constant time. Webhook responses: `queued`, `ignored` (nothing to say / not for us), `dropped`
@@ -110,7 +116,9 @@ file). Secrets never go in the YAML. See `.env.example` for the full list with d
 relevant ones: `CONTROL_TOKEN`, `OVERLAY_KEY`, `ANTHROPIC_API_KEY` (unset =
 rules-only reader), `FAKE_ENGINE`, `EMA_WEIGHTS_DIR`, `TORCH_NUM_THREADS`, `SPEECH_SPEED`, `MIN_KICKS`, `REWARD_TITLE`,
 `COMMAND_PREFIX`, `COMMAND_ROLES`, `COMMAND_COOLDOWN_S`, `MAX_TEXT_CHARS`, `MAX_QUEUE`, `BLOCKLIST`
-(empty by default; when set, matching items are dropped, never censored), `PRONOUNCE_PATH`.
+(empty by default; when set, matching items are dropped, never censored), `PRONOUNCE_PATH`. For the
+panel: `KICK_CLIENT_ID` / `KICK_CLIENT_SECRET`, `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET`,
+`PUBLIC_BASE_URL`, `PANEL_ALLOWED_USERS`, `SESSION_SECRET`, `PANEL_SESSION_TTL_S` (see [Panel](#panel)).
 
 ## Tests
 
@@ -246,6 +254,66 @@ Append `&debug=1` to the URL to show the connection status. A rejected `play()` 
 5. Turn **off** "Shutdown source when not visible". Leave "Refresh browser when scene becomes active" off too, so the WebSocket stays connected.
 6. In a normal browser tab (for testing), Chrome blocks audio until the page gets a user gesture. Click once anywhere on the page, or on the "click to enable audio" hint, to unlock audio. OBS does not need this.
 
+## Panel
+
+`https://anildev.io/tts/panel` (locally `http://127.0.0.1:8000/panel`) is the streamer UI: log in with
+**Kick** or **Discord**, and the page shows everything OBS needs plus the keys and live controls.
+
+What the page shows after login:
+
+- **OBS browser source**: the overlay URL with the overlay key (masked until "Show", one-click copy), a
+  debug variant (`&debug=1`), width 1920 / height 1080, "Control audio via OBS" on, "Shutdown source
+  when not visible" and "Refresh browser when scene becomes active" off, empty custom CSS, and the
+  four-step checklist.
+- **Keys**: the overlay key and the control token (masked, copyable) and the public base URL.
+- **Channel triggers**: `MIN_KICKS`, `REWARD_TITLE`, `COMMAND_PREFIX`, `COMMAND_ROLES`, cooldown, limits,
+  `SPEECH_SPEED` as the running instance has them.
+- **Live**: `/status` polled every 5 s (readiness, queue length, overlay clients, paused, engine, reader) and
+  buttons for `/speak` (test sentence), `/skip`, `/pause`, `/resume`, `/clear`, all called from the browser
+  with the control token.
+- **Stream Deck / scripts**: ready-to-paste curl and PowerShell snippets with the token filled in.
+
+### How login works
+
+`GET /auth/kick/login` or `GET /auth/discord/login` starts an OAuth 2.0 authorization-code flow (Kick with
+PKCE S256 and scope `user:read`, Discord with scope `identify`). The state (and the PKCE verifier) travel in
+a signed, HttpOnly, SameSite=Lax cookie that lives 10 minutes; the callback checks it, exchanges the code,
+reads the profile (`GET /public/v1/users` on Kick, `GET /users/@me` on Discord), and sets a signed session
+cookie (`PANEL_SESSION_TTL_S`, default 7 days). Provider tokens are used once and never stored; there is no
+session store, so the pod stays stateless. Cookies are signed with `SESSION_SECRET`, or, when it is unset,
+with a key derived from `CONTROL_TOKEN`. Both cookies are scoped to the path of `PUBLIC_BASE_URL` (`/tts`
+in the cluster) and `Secure` when that URL is https. `/panel/me` and the login pages are `Cache-Control:
+no-store`; logins are counted in `tts_panel_logins_total{provider,result}` (`ok`, `unauthorized`, `error`).
+
+**Who gets the keys.** Anyone can log in, but the settings and keys are returned only to:
+
+1. the Kick account whose user id equals `KICK_BROADCASTER_USER_ID` (the channel this instance reads), and
+2. the identities in `PANEL_ALLOWED_USERS` (`app/settings.yaml`): a comma-separated list of
+   `kick:<user id or name>` / `discord:<user id or name>`, names matched case-insensitively.
+
+Everyone else sees a "not allowed" page that shows the exact `provider:id` entry to add. The service is
+single-tenant (one channel, one overlay key), so this is an admin allow list, not per-user keys; per-user
+keys come with the multi-tenant milestone.
+
+### Setup
+
+| Setting | Where | Value |
+|---|---|---|
+| `KICK_CLIENT_ID`, `KICK_CLIENT_SECRET` | secret | the Kick developer app (same one `kick_subscribe.py` uses); set its **redirect URL** in the portal to `https://anildev.io/tts/auth/kick/callback` (`docs/KICK_SETUP.md`) |
+| `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` | secret | a Discord application (<https://discord.com/developers/applications>, OAuth2 tab) with redirect `https://anildev.io/tts/auth/discord/callback` |
+| `PUBLIC_BASE_URL` | `deploy/deployment.yaml` env | `https://anildev.io/tts`: the origin and prefix browsers see; used for the redirect URIs, the cookie path and the URLs the panel prints. Unset locally (the request origin is used) |
+| `PANEL_ALLOWED_USERS` | `app/settings.yaml` | extra allowed identities (default `kick:anildev`) |
+| `SESSION_SECRET` | secret, optional | independent cookie-signing key; unset = derived from `CONTROL_TOKEN` |
+
+A provider whose id or secret is missing is simply not offered on the login page; with neither configured
+the page says so. Locally, put the client ids/secrets in `.env` and register
+`http://127.0.0.1:8000/auth/<provider>/callback` as an extra redirect URL in the provider's portal.
+
+`app/static/panel.html` follows the same rules as the overlay: one self-contained file, no CDNs, relative
+URLs only (`panel/me`, `auth/kick/login`, `status`, `speak` resolve from `/panel` and from `/tts/panel`),
+DOM built with `textContent`, secrets masked until revealed; `tests/test_panel.py` pins these and runs the
+whole login flow against a mocked Kick/Discord.
+
 ## Deployment
 
 Push to `main` and `.github/workflows/deploy.yaml` does the rest, the same pipeline as `anildev-home-page`:
@@ -259,7 +327,7 @@ TLS secret `anildev-tls`).
 500m / 1Gi, limits 1500m / 2Gi, non-root, thread caps, `HF_HUB_OFFLINE=1`, PVC at `/cache`, startup probe on
 `/readyz` with a 5 min budget, liveness on `/healthz`), Service, Ingress, PVC, ServiceMonitor, a 6-hourly
 CronJob that re-ensures the Kick subscriptions, and `secret.example.yaml` as the template for
-`kick-tts-secrets`. The app secret is created once by hand and never touched by CI. **`docs/DEPLOY.md`**
+`kick-tts-secrets` (control token, overlay key, Anthropic key, Kick and Discord client credentials). The app secret is created once by hand and never touched by CI. **`docs/DEPLOY.md`**
 has the full procedure: generating the weights lock, the one-time `KUBECONFIG_SECRET` and app-secret setup,
 the manual build-and-apply fallback, the ServiceMonitor selector discovery command, the note that
 `/readyz` is 503 for the first ~30 s by design, certificate and Grafana checks, memory tuning,

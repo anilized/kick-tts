@@ -20,9 +20,16 @@ Source for names and endpoints: `docs/kick/event-types.md`, `docs/kick/openapi.y
 2. Open <https://kick.com/settings/developer> and create an app.
 3. Kick shows a **Client ID** and a **Client Secret**. Copy both; the secret is only meant to be
    handled as a secret (see step 4).
-4. The portal also asks for a redirect URL. kick-tts never runs the user OAuth flow (it uses the
-   app-only `client_credentials` grant), so any valid URL you own is fine, for example
-   `https://anildev.io/tts/`.
+4. The portal also asks for a redirect URL. Set it to the panel's Kick callback:
+
+   ```
+   https://anildev.io/tts/auth/kick/callback
+   ```
+
+   The subscription script itself never runs the user OAuth flow (it uses the app-only
+   `client_credentials` grant), but "Continue with Kick" on `/panel` does (authorization code +
+   PKCE, scope `user:read`), and Kick only redirects to URLs registered here. For local runs add
+   `http://127.0.0.1:8000/auth/kick/callback` as a second redirect URL.
 
 ## 2. Enable webhooks and set the webhook URL (portal only)
 
@@ -51,7 +58,8 @@ App Access Token with no scope list:
 
 So no scope is requested by the script. For reference, the same subscription endpoints accept a
 *user* token with the `events:subscribe` scope (and channel lookup with `channel:read`). If the
-portal asks you to tick scopes for the app, tick `events:subscribe` and `channel:read`. If Kick
+portal asks you to tick scopes for the app, tick `events:subscribe`, `channel:read` and `user:read`
+(the last one is what the panel login asks for, to read the logged-in user's id and name). If Kick
 ever rejects the redemption subscription for lack of a rewards scope, `channel:rewards:read` is
 the one to add; the vendored docs do not list it as required.
 
@@ -64,6 +72,11 @@ Real values never go into git. Create/refresh the Kubernetes secret (see
 KICK_CLIENT_ID=<client id from the portal>
 KICK_CLIENT_SECRET=<client secret from the portal>
 ```
+
+The service reads the same two values for the panel login (`/panel`, "Continue with Kick"), so one
+app serves both the CronJob and the login. After `resolve` printed the broadcaster id, also set
+`KICK_BROADCASTER_USER_ID` in the secret: that Kick account is then automatically allowed to see the
+keys on the panel (README, "Panel").
 
 ```bash
 kubectl -n streaming edit secret kick-tts-secrets      # or re-apply your private secret manifest

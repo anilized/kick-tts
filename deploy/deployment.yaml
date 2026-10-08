@@ -50,6 +50,8 @@ spec:
               value: /config/pronounce.yaml
             - name: SETTINGS_PATH      # tunables (SPEECH_SPEED, ...) from app/settings.yaml via the ConfigMap
               value: /config/settings.yaml
+            - name: PUBLIC_BASE_URL    # what browsers see (ingress prefix): OAuth redirect URIs and the URLs /panel shows
+              value: https://anildev.io/tts
           resources:
             requests:
               cpu: 500m

@@ -116,6 +116,7 @@ def test_deployment_env(container):
     assert env["HF_HUB_OFFLINE"] == "1"
     assert env["PRONOUNCE_PATH"] == "/config/pronounce.yaml"
     assert env["SETTINGS_PATH"] == "/config/settings.yaml"
+    assert env["PUBLIC_BASE_URL"] == "https://anildev.io/tts"  # OAuth redirect URIs + the URLs the panel shows
     assert "SPEECH_SPEED" not in env  # tunables live in app/settings.yaml, not in the manifest
     assert any(e.get("secretRef", {}).get("name") == "kick-tts-secrets" for e in container["envFrom"])
 
@@ -196,6 +197,7 @@ def test_secret_example_has_only_placeholders():
     assert set(data) == {
         "CONTROL_TOKEN", "OVERLAY_KEY", "ANTHROPIC_API_KEY",
         "KICK_CLIENT_ID", "KICK_CLIENT_SECRET", "KICK_BROADCASTER_USER_ID",
+        "DISCORD_CLIENT_ID", "DISCORD_CLIENT_SECRET",
     }
     for key, value in data.items():
         assert value in ("CHANGE_ME", "0"), f"{key} must be a placeholder"

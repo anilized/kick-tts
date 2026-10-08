@@ -85,6 +85,23 @@ class Settings(BaseSettings):
     WS_PING_INTERVAL_S: float = 20
     ACK_GRACE_S: float = 2.0
 
+    # panel login (/panel). A provider is offered only when both its id and secret are set.
+    # KICK_CLIENT_ID/SECRET are the same Kick app scripts/kick_subscribe.py uses; its redirect URL in the
+    # developer portal must be <PUBLIC_BASE_URL>/auth/kick/callback.
+    KICK_CLIENT_ID: str | None = None
+    KICK_CLIENT_SECRET: SecretStr | None = None
+    DISCORD_CLIENT_ID: str | None = None
+    DISCORD_CLIENT_SECRET: SecretStr | None = None
+    # Public origin (+ path prefix) the browser uses, e.g. https://anildev.io/tts. Needed for the OAuth
+    # redirect URIs behind the ingress rewrite. Empty = scheme://host of the request, no prefix (local dev).
+    PUBLIC_BASE_URL: str = ""
+    # Signs the session/login cookies. Unset = derived from CONTROL_TOKEN (fine for one instance).
+    SESSION_SECRET: SecretStr | None = None
+    # Who gets the keys after logging in: kick:<user id or name>,discord:<user id or name>. The Kick account
+    # with user id KICK_BROADCASTER_USER_ID (when > 0) is always allowed.
+    PANEL_ALLOWED_USERS: str = ""
+    PANEL_SESSION_TTL_S: float = 7 * 24 * 3600
+
     LOG_LEVEL: str = "INFO"
 
     @classmethod
@@ -119,6 +136,9 @@ class Settings(BaseSettings):
             self.OVERLAY_KEY = "dev-key"
         if not 0.25 <= self.SPEECH_SPEED <= 4:
             raise ValueError("SPEECH_SPEED must be between 0.25 and 4")
+        self.PUBLIC_BASE_URL = self.PUBLIC_BASE_URL.strip().rstrip("/")
+        if self.PUBLIC_BASE_URL and not self.PUBLIC_BASE_URL.startswith(("http://", "https://")):
+            raise ValueError("PUBLIC_BASE_URL must start with http:// or https://")
         return self
 
     # ASCII Kick API identifiers (redemption status, badge type): plain lower(), never Turkish I/ı mapping.

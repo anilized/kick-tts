@@ -17,18 +17,21 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Callable
 
+import httpx
 from fastapi import Depends, FastAPI, Request, WebSocket
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel
 
 from app import metrics
+from app.auth import HTTP_TIMEOUT, Signer, build_providers
 from app.config import Settings
 from app.engine import get_engine
 from app.interfaces import Engine, Reader, TtsItem
 from app.kick.dedupe import TtlSet
 from app.kick.events import EventMapper
 from app.kick.signature import KeyProvider, PublicKeyCache, http_key_provider
+from app.panel import build_router as build_panel_router
 from app.queue import TtsQueue
 from app.reader import get_reader
 from app.reader.emoji import is_only_emoji
@@ -81,6 +84,7 @@ def create_app(
     reader: Reader | None = None,
     clock: Callable[[], float] | None = None,
     key_provider: KeyProvider | None = None,
+    oauth_http: httpx.AsyncClient | None = None,
 ) -> FastAPI:
     clock = clock or time.time
     logging.getLogger("app").setLevel(settings.LOG_LEVEL.upper())
@@ -107,6 +111,8 @@ def create_app(
         state.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="tts-synth")
         state.engine = engine
         state.reader = reader if reader is not None else get_reader(settings)
+        state.oauth_http = oauth_http if oauth_http is not None else httpx.AsyncClient(timeout=HTTP_TIMEOUT)
+        state.providers = build_providers(settings, state.oauth_http)
 
         def build_and_warm() -> Engine:
             eng = engine if engine is not None else get_engine(settings)  # EmaEngine: env, torch, weights
@@ -150,10 +156,13 @@ def create_app(
                 t.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
             await state.hub.close_all()
+            if oauth_http is None:
+                await state.oauth_http.aclose()
             state.executor.shutdown(wait=False, cancel_futures=True)
             log.info("kick-tts stopped")
 
     app = FastAPI(title="kick-tts", lifespan=lifespan, redirect_slashes=False, docs_url=None, redoc_url=None)
+    app.include_router(build_panel_router(settings, Signer.from_settings(settings)))
 
     # -- auth -------------------------------------------------------------------------------------
 
