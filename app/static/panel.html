@@ -617,7 +617,17 @@
   $('btn-key-clear').addEventListener('click', function () {
     if (confirm('Remove the key set on the panel? The reader falls back to the Secret key, or to rules-only.')) saveRuntime({ anthropic_api_key: null });
   });
-  $('btn-key-test').addEventListener('click', testReader);
+  $('btn-key-test').addEventListener('click', function () {
+    var v = $('key-input').value.trim();
+    if (v) { saveRuntime({ anthropic_api_key: v }, function () { $('key-input').value = ''; testReader(); }); }  // unsaved key in the field: save it first
+    else testReader();
+  });
+  $('key-input').addEventListener('input', function () {
+    var pending = $('key-input').value.trim().length > 0;
+    $('btn-key-test').disabled = false;
+    $('btn-key-save').textContent = pending ? 'Save key' : 'Save key';
+    if (pending) rtMessage('Key not saved yet: press Save key (or Test, which saves first).', '');
+  });
 
   // -- live -----------------------------------------------------------------------------------------
 
