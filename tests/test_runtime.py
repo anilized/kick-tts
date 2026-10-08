@@ -50,7 +50,7 @@ def test_store_round_trip_and_permissions(tmp_path):
     store = RuntimeStore(tmp_path / "nested" / "panel.json")
     assert store.load() == RuntimeOverrides()  # missing file
     store.save(RuntimeOverrides(anthropic_api_key="sk-ant-test-placeholder", speech_speed=0.9))
-    assert json.loads(store.path.read_text()) == {"anthropic_api_key": "sk-ant-test-placeholder", "speech_speed": 0.9}
+    assert json.loads(store.path.read_text()) == {"anthropic_api_key": "sk-ant-test-placeholder", "speech_speed": 0.9, "deess": None, "treble_db": None, "target_rms_db": None}
     assert store.load() == RuntimeOverrides(anthropic_api_key="sk-ant-test-placeholder", speech_speed=0.9)
     if sys.platform != "win32":
         assert oct(store.path.stat().st_mode & 0o777) == "0o600"
@@ -132,7 +132,7 @@ async def test_runtime_rejects_bad_speed_without_persisting(make_settings, tmp_p
             await rt.update(speech_speed=bad)
     assert not (tmp_path / "p.json").exists()
     await rt.update(speech_speed=UNSET)  # no-op still persists the (empty) file
-    assert json.loads((tmp_path / "p.json").read_text()) == {"anthropic_api_key": None, "speech_speed": None}
+    assert json.loads((tmp_path / "p.json").read_text()) == {"anthropic_api_key": None, "speech_speed": None, "deess": None, "treble_db": None, "target_rms_db": None}
 
 
 async def test_check_reader_without_api_is_trivially_ok(make_settings, tmp_path):

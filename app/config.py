@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     # Speaking rate passed to EMA Lightning's say(speed=...): 1.0 = the model's natural pace, lower is
     # slower (0.85 ~ 18 % longer audio). The library accepts 0.25 .. 4.
     SPEECH_SPEED: float = 1.0
+    # Output polish after the engine (app/engine/polish.py), all tunable live on the panel.
+    DEESS: float = 1.0  # de-esser strength: 0 off, 1 normal, up to 3
+    TREBLE_DB: float = -2.0  # high shelf above 5 kHz, -12 .. 6; 0 off
+    TARGET_RMS_DB: float = -20.0  # loudness target, -40 .. -6 dBFS; 0 off (peaks are always kept under -0.5 dBFS)
 
     # kick event mapping
     KICK_BROADCASTER_USER_ID: int = 0
@@ -139,6 +143,15 @@ class Settings(BaseSettings):
             self.OVERLAY_KEY = "dev-key"
         if not 0.25 <= self.SPEECH_SPEED <= 4:
             raise ValueError("SPEECH_SPEED must be between 0.25 and 4")
+        for name, value, lo, hi in (
+            ("DEESS", self.DEESS, 0.0, 3.0),
+            ("TREBLE_DB", self.TREBLE_DB, -12.0, 6.0),
+            ("TARGET_RMS_DB", self.TARGET_RMS_DB, -40.0, 0.0),
+        ):
+            if not lo <= value <= hi:
+                raise ValueError(f"{name} must be between {lo} and {hi}")
+        if 0 > self.TARGET_RMS_DB > -6:
+            raise ValueError("TARGET_RMS_DB must be 0 (off) or at most -6")
         self.PUBLIC_BASE_URL = self.PUBLIC_BASE_URL.strip().rstrip("/")
         if self.PUBLIC_BASE_URL and not self.PUBLIC_BASE_URL.startswith(("http://", "https://")):
             raise ValueError("PUBLIC_BASE_URL must start with http:// or https://")

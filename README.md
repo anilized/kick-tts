@@ -232,6 +232,58 @@ offline; the Dockerfile refuses to build until the real lock is committed (step 
 index and everything else from the `==` pins in `requirements.txt`; `tests/test_requirements_pins.py`
 keeps those pins equal to the dev venv.
 
+### Output polish: de-esser, treble, level
+
+The model renders fricatives (ş, s, ç, t) as loud as the vowels, in a 5 to 9 kHz band that its small vocoder
+makes fizzy, so the raw output sounds harsh ("too crisp"). The worker therefore runs every utterance through
+`app/engine/polish.py` after the engine, about 25 ms per utterance on CPU:
+
+| Stage | Setting | What it does |
+|---|---|---|
+| De-esser | `DEESS` (0 off, 1 normal, up to 3) | split-band: the 4.5 to 10 kHz band is turned down only while its envelope exceeds a fraction of the 300 Hz to 4 kHz "body" envelope (8 ms windows, 3 ms gain smoothing, at most 8 dB per unit of strength). On the production sample strength 1 takes the sibilance-to-body ratio from -7 dB to -15 dB, strength 2 to -20 dB; the body band is untouched. |
+| Treble shelf | `TREBLE_DB` (-12 .. 6, 0 off) | gentle high shelf above 5 kHz; negative = softer |
+| Level | `TARGET_RMS_DB` (-40 .. -6, 0 off) | scales the utterance so the louder half sits at the target RMS, peaks never above -0.5 dBFS; the raw model peaks around -5.5 dBFS at -24 dBFS RMS, which is quiet next to game and mic audio |
+
+Defaults (`app/settings.yaml`): `DEESS: 1.0`, `TREBLE_DB: -2.0`, `TARGET_RMS_DB: -20.0`. All three are sliders in
+the panel's "Voice & reader" card and apply to the next utterance (panel values override the YAML until
+"Reset polish"). Set all three to 0 to hear the raw engine. A failure inside the polish stage is counted in
+`tts_failures_total{stage="polish"}` and the raw audio is sent instead. `tests/test_polish.py` pins the
+behaviour on a synthetic vowel-plus-ş signal and through the worker.
+
+What polish cannot fix: the model itself (8.6M parameters, 4 distilled sampling steps, no content above
+about 9 kHz). Sample rate is not the problem: 24 kHz and the native 48 kHz measure the same.
+
+### Voice variations (DSP example)
+
+EMA Lightning is a single-speaker model (only `speed` and a diffusion `seed`), so "male" or "angry" cannot
+come from the engine. `app/engine/dsp.py` is a numpy-only example that derives caricature voices from the
+engine's output, in about 20 to 50 ms per utterance on CPU:
+
+| Voice | What is done |
+|---|---|
+| `female` | the engine's own voice, untouched |
+| `male` | pitch and formants 4 semitones down (resample, then WSOLA back to the original length), 3 % slower |
+| `angry_female` | 1 semitone up, 12 % faster, tanh saturation, presence boost above 2 kHz, 32 Hz amplitude "growl" |
+| `angry_male` | 3.5 semitones down, 10 % faster, stronger saturation and growl |
+| `deep` | 7 semitones down, slower, light growl |
+| `chipmunk` | 7 semitones up, faster |
+
+Primitives: `time_stretch` (WSOLA, keeps pitch), `pitch_shift` (resample + stretch, moves the formants, which
+is what makes the lower voice sound like a bigger speaker rather than a slowed tape), `saturate`, `presence`
+(frequency-domain first-order high-pass mix), `growl`, `normalize`. Presets are `VoiceFX` dataclasses in
+`VOICES`; `voice_with("male", pitch_semitones=-6)` makes a tweaked copy, `process_wav(wav, "male")` works on the
+engine's WAV bytes. Listen to all of them:
+
+```
+python scripts/voice_demo.py                       # synthesizes a sentence with the real engine -> demo-voices/*.wav
+python scripts/voice_demo.py --in clip.wav --out x # process an existing WAV instead
+```
+
+Honest limits: it is the same speaker pitched and distorted, not a second voice; large shifts (`deep`,
+`chipmunk`) sound processed on purpose. For real male/female voices and emotions a second engine is needed
+(a hosted TTS with Turkish voices, or Chatterbox on a GPU box); `Engine` is a protocol so that can be added
+beside EMA. The DSP voices are not wired into the worker yet; `tests/test_dsp.py` pins their behaviour.
+
 ## Overlay
 
 `app/static/overlay.html` is one self-contained file (no CDNs, no absolute URLs) with a transparent body

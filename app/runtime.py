@@ -17,6 +17,7 @@ from typing import Any, Callable
 from pydantic import BaseModel, SecretStr
 
 from app.config import Settings
+from app.engine.polish import Polish
 from app.interfaces import Engine, Reader
 
 log = logging.getLogger(__name__)
@@ -28,6 +29,17 @@ UNSET: Any = object()  # "leave this field as it is" marker for Runtime.update
 class RuntimeOverrides(BaseModel):
     anthropic_api_key: str | None = None  # None = use the environment value (or rules-only)
     speech_speed: float | None = None  # None = use settings.yaml / env
+    deess: float | None = None  # output polish (app/engine/polish.py); None = settings.yaml / env
+    treble_db: float | None = None
+    target_rms_db: float | None = None
+
+
+# name -> (settings field, min, max). TARGET_RMS_DB additionally allows 0 = off.
+POLISH_FIELDS: dict[str, tuple[str, float, float]] = {
+    "deess": ("DEESS", 0.0, 3.0),
+    "treble_db": ("TREBLE_DB", -12.0, 6.0),
+    "target_rms_db": ("TARGET_RMS_DB", -40.0, -6.0),
+}
 
 
 class RuntimeStore:
@@ -115,6 +127,19 @@ class Runtime:
     def speech_speed(self) -> float:
         return self.overrides.speech_speed if self.overrides.speech_speed is not None else self.settings.SPEECH_SPEED
 
+    def _polish_value(self, name: str) -> float:
+        override = getattr(self.overrides, name)
+        return override if override is not None else float(getattr(self.settings, POLISH_FIELDS[name][0]))
+
+    @property
+    def polish(self) -> Polish:
+        """What the worker applies to every utterance (read per item, so panel changes apply at once)."""
+        return Polish(
+            deess=self._polish_value("deess"),
+            treble_db=self._polish_value("treble_db"),
+            target_rms_db=self._polish_value("target_rms_db"),
+        )
+
     def describe(self) -> dict[str, Any]:
         """What the panel shows. The key itself never leaves the server."""
         if self.overrides.anthropic_api_key:
@@ -135,6 +160,16 @@ class Runtime:
                 "max": SPEED_MAX,
             },
             "engine_speed_applied": self.engine is not None and hasattr(self.engine, "speed"),
+            "polish": {
+                name: {
+                    "value": self._polish_value(name),
+                    "source": "panel" if getattr(self.overrides, name) is not None else "settings",
+                    "default": float(getattr(self.settings, field)),
+                    "min": lo,
+                    "max": hi,
+                }
+                for name, (field, lo, hi) in POLISH_FIELDS.items()
+            },
             "state_path": str(self.store.path),
         }
 
@@ -148,10 +183,35 @@ class Runtime:
         if self.engine is not None and hasattr(self.engine, "speed"):
             self.engine.speed = float(self.speech_speed)
 
-    async def update(self, *, anthropic_api_key: Any = UNSET, speech_speed: Any = UNSET) -> dict[str, Any]:
-        """Apply and persist. anthropic_api_key: str to set, "" / None to clear; speech_speed: float or None to reset.
-        Raises ValueError on a bad speed. The file is written before anything is swapped."""
+    async def update(
+        self,
+        *,
+        anthropic_api_key: Any = UNSET,
+        speech_speed: Any = UNSET,
+        deess: Any = UNSET,
+        treble_db: Any = UNSET,
+        target_rms_db: Any = UNSET,
+    ) -> dict[str, Any]:
+        """Apply and persist. anthropic_api_key: str to set, "" / None to clear; the numeric fields: a number to
+        set, None to reset to settings.yaml / env. Raises ValueError on a bad value. The file is written before
+        anything is swapped."""
         new = self.overrides.model_copy()
+        for name, incoming in (("deess", deess), ("treble_db", treble_db), ("target_rms_db", target_rms_db)):
+            if incoming is UNSET:
+                continue
+            if incoming is None:
+                setattr(new, name, None)
+                continue
+            try:
+                value = float(incoming)
+            except (TypeError, ValueError):
+                raise ValueError(f"{name} must be a number") from None
+            _, lo, hi = POLISH_FIELDS[name]
+            if name == "target_rms_db" and value == 0:
+                pass  # 0 = normalization off
+            elif not lo <= value <= hi:
+                raise ValueError(f"{name} must be between {lo} and {hi}" + (" (or 0 = off)" if name == "target_rms_db" else ""))
+            setattr(new, name, round(value, 2))
         if anthropic_api_key is not UNSET:
             key = (anthropic_api_key or "").strip()
             new.anthropic_api_key = key or None

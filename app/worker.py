@@ -15,6 +15,7 @@ from typing import Callable
 
 from app import metrics
 from app.config import Settings
+from app.engine.polish import Polish, polish_wav
 from app.interfaces import Engine, OverlayItem, Reader, TtsItem
 from app.queue import TtsQueue
 from app.reader.emoji import strip_emoji
@@ -55,6 +56,7 @@ class Worker:
         engine_getter: Callable[[], Engine],
         executor: Executor,
         ready: asyncio.Event,
+        polish_getter: Callable[[], Polish] | None = None,
     ) -> None:
         self._s = settings
         self._queue = queue
@@ -63,6 +65,7 @@ class Worker:
         self._engine_getter = engine_getter
         self._executor = executor
         self._ready = ready
+        self._polish_getter = polish_getter
         self._blocklist = settings.blocklist
         self.processed = 0  # items that reached the overlay (tests/status)
 
@@ -113,6 +116,16 @@ class Worker:
             log.exception("synth failed for item %s", item.id)
             return
         metrics.tts_synth_latency_seconds.observe(time.perf_counter() - t1)
+
+        # 3b. output polish (de-esser, treble, level) on the same executor; a failure here keeps the raw audio
+        if self._polish_getter is not None:
+            p = self._polish_getter()
+            if not p.is_identity():
+                try:
+                    wav = await loop.run_in_executor(self._executor, polish_wav, wav, p)
+                except Exception:
+                    metrics.tts_failures_total.labels(stage="polish").inc()
+                    log.exception("polish failed for item %s; sending the unpolished audio", item.id)
         duration = wav_duration(wav)
 
         # 4. broadcast, then pace on the overlay's played-ack (or duration + grace)

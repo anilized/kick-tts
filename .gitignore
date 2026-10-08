@@ -11,3 +11,4 @@ weights/
 *.local.yaml
 node_modules/
 .cache/
+demo-voices/

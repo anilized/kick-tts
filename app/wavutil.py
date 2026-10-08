@@ -20,6 +20,19 @@ def encode_wav(samples: np.ndarray, sample_rate: int) -> bytes:
     return buf.getvalue()
 
 
+def decode_wav(wav: bytes) -> tuple[np.ndarray, int]:
+    """PCM16 WAV bytes -> (float32 mono samples in [-1, 1], sample_rate). Multi-channel input is averaged."""
+    with wave.open(io.BytesIO(wav), "rb") as r:
+        channels, rate, width, nframes = r.getnchannels(), r.getframerate(), r.getsampwidth(), r.getnframes()
+        raw = r.readframes(nframes)
+    if width != 2:
+        raise ValueError(f"only PCM16 WAV is supported (sampwidth={width})")
+    pcm = np.frombuffer(raw, dtype="<i2").astype(np.float32) / 32768.0
+    if channels > 1:
+        pcm = pcm.reshape(-1, channels).mean(axis=1)
+    return pcm, rate
+
+
 def wav_info(wav: bytes) -> tuple[int, int, int, int]:
     """Return (channels, sample_rate, sampwidth_bytes, nframes)."""
     with wave.open(io.BytesIO(wav), "rb") as r:

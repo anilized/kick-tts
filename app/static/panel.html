@@ -188,6 +188,36 @@
             </div>
             <p class="note">With a key, Claude rewrites each chat message into speakable Turkish before TTS (chat slang, acronyms, emotes); without one the rules cleaner is used. The key is stored on the server and never shown again in full.</p>
           </dd>
+          <dt>De-esser</dt>
+          <dd>
+            <div class="row" style="margin:0">
+              <input id="deess-range" type="range" min="0" max="3" step="0.1" aria-label="de-esser strength">
+              <input id="deess-num" type="text" class="short" inputmode="decimal" aria-label="de-esser value">
+            </div>
+            <p class="note" style="margin:4px 0 0">Turns the harsh ş / s / ç band (4.5 to 10 kHz) down only while it sticks out. 0 = off, 1 = normal, 2 = strong.</p>
+          </dd>
+          <dt>Treble</dt>
+          <dd>
+            <div class="row" style="margin:0">
+              <input id="treble-range" type="range" min="-12" max="6" step="0.5" aria-label="treble shelf dB">
+              <input id="treble-num" type="text" class="short" inputmode="decimal" aria-label="treble value">
+              <span class="note" style="margin:0">dB above 5 kHz (negative = softer)</span>
+            </div>
+          </dd>
+          <dt>Level</dt>
+          <dd>
+            <div class="row" style="margin:0">
+              <input id="level-range" type="range" min="-40" max="-6" step="1" aria-label="loudness target dBFS">
+              <input id="level-num" type="text" class="short" inputmode="decimal" aria-label="level value">
+              <label class="note" style="margin:0"><input id="level-on" type="checkbox"> normalize</label>
+              <span class="note" style="margin:0">dBFS target</span>
+            </div>
+            <div class="row">
+              <button id="btn-polish-save" class="btn sm" type="button">Save polish</button>
+              <button id="btn-polish-reset" class="btn sm" type="button">Reset polish</button>
+              <span id="polish-src" class="note" style="margin:0"></span>
+            </div>
+          </dd>
         </dl>
         <p id="rt-msg" class="note"></p>
       </div>
@@ -489,7 +519,56 @@
     $('btn-key-clear').disabled = k.source !== 'panel';
     $('btn-key-test').disabled = !k.configured;
     $('btn-speed-reset').disabled = sp.source !== 'panel';
+    renderPolish(rt.polish);
   }
+
+  function renderPolish(p) {
+    if (!p) return;
+    var pairs = [['deess', p.deess], ['treble', p.treble_db], ['level', p.target_rms_db]];
+    pairs.forEach(function (pair) {
+      var id = pair[0], f = pair[1];
+      $(id + '-range').min = String(f.min);
+      $(id + '-range').max = String(f.max);
+      if (id === 'level') {
+        var on = f.value !== 0;
+        $('level-on').checked = on;
+        var v = on ? f.value : (f.default !== 0 ? f.default : -20);
+        $('level-range').value = String(v);
+        $('level-num').value = String(v);
+        $('level-range').disabled = !on;
+        $('level-num').disabled = !on;
+      } else {
+        $(id + '-range').value = String(f.value);
+        $(id + '-num').value = String(f.value);
+      }
+    });
+    var fromPanel = ['deess', 'treble_db', 'target_rms_db'].filter(function (n) { return p[n].source === 'panel'; });
+    $('polish-src').textContent = fromPanel.length
+      ? 'Set on the panel. Reset returns to settings.yaml (' + p.deess.default + ' / ' + p.treble_db.default + ' dB / ' + p.target_rms_db.default + ' dBFS).'
+      : 'From settings.yaml. Changes apply to the next utterance; press Speak in the live card to hear them.';
+    $('btn-polish-reset').disabled = fromPanel.length === 0;
+  }
+
+  function bindPair(id) {
+    $(id + '-range').addEventListener('input', function () { $(id + '-num').value = $(id + '-range').value; });
+    $(id + '-num').addEventListener('input', function () {
+      var v = parseFloat($(id + '-num').value.replace(',', '.'));
+      if (!isNaN(v)) $(id + '-range').value = String(v);
+    });
+  }
+  bindPair('deess'); bindPair('treble'); bindPair('level');
+  $('level-on').addEventListener('change', function () {
+    $('level-range').disabled = !$('level-on').checked;
+    $('level-num').disabled = !$('level-on').checked;
+  });
+  $('btn-polish-save').addEventListener('click', function () {
+    var d = parseFloat($('deess-num').value.replace(',', '.'));
+    var t = parseFloat($('treble-num').value.replace(',', '.'));
+    var l = $('level-on').checked ? parseFloat($('level-num').value.replace(',', '.')) : 0;
+    if (isNaN(d) || isNaN(t) || isNaN(l)) { rtMessage('Polish values must be numbers.', 'bad-text'); return; }
+    saveRuntime({ deess: d, treble_db: t, target_rms_db: l });
+  });
+  $('btn-polish-reset').addEventListener('click', function () { saveRuntime({ deess: null, treble_db: null, target_rms_db: null }); });
 
   function rtMessage(text, cls) {
     var m = $('rt-msg');

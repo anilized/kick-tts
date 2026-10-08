@@ -147,6 +147,7 @@ def create_app(
             lambda: state.engine,
             state.executor,
             state.ready,
+            polish_getter=lambda: state.runtime.polish,
         )
         state.warmup_task = asyncio.create_task(warm(), name="tts-warmup")
         state.worker_task = asyncio.create_task(state.worker.run(), name="tts-worker")

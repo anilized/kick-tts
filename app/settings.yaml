@@ -12,6 +12,14 @@
 # A speed saved on /panel ("Voice & reader") overrides this value until "Reset" is pressed there.
 SPEECH_SPEED: 0.85
 
+# Output polish (app/engine/polish.py), applied to every utterance after the engine. The model renders
+# fricatives (ş, s, ç) as loud as vowels, which sounds harsh: the de-esser turns the 4.5 .. 10 kHz band down
+# only while it sticks out, the treble shelf softens what is left, the normalizer sets a steady level in OBS.
+# All three can be changed live on /panel; a panel value overrides these until "Reset".
+DEESS: 1.0            # 0 = off, 1 = normal (~ -15 dB sibilance/body), 2 = strong, max 3
+TREBLE_DB: -2.0       # high shelf above 5 kHz; -12 .. 6, 0 = off
+TARGET_RMS_DB: -20.0  # loudness target dBFS (over the louder half of the utterance); -40 .. -6, 0 = off
+
 # --- kick event mapping (uncomment to override the defaults) -----------------------------------
 # MIN_KICKS: 1                 # gifts below this amount are not read
 # REWARD_TITLE: TTS            # channel-point reward whose redemptions are read

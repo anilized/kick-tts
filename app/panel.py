@@ -72,6 +72,9 @@ class SettingsUpdate(BaseModel):
 
     anthropic_api_key: str | None = None
     speech_speed: float | None = None
+    deess: float | None = None
+    treble_db: float | None = None
+    target_rms_db: float | None = None
 
 
 def session_payload(settings: Settings, base: str, who: Identity, runtime: Runtime | None = None) -> dict:
@@ -154,8 +157,7 @@ def build_router(settings: Settings, signer: Signer) -> APIRouter:
         fields = body.model_fields_set
         try:
             described = await runtime.update(
-                anthropic_api_key=body.anthropic_api_key if "anthropic_api_key" in fields else UNSET,
-                speech_speed=body.speech_speed if "speech_speed" in fields else UNSET,
+                **{name: getattr(body, name) if name in fields else UNSET for name in SettingsUpdate.model_fields}
             )
         except ValueError as exc:
             return JSONResponse({"detail": str(exc)}, status_code=422)
