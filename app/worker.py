@@ -120,6 +120,8 @@ class Worker:
         # 3b. output polish (de-esser, treble, level) on the same executor; a failure here keeps the raw audio
         if self._polish_getter is not None:
             p = self._polish_getter()
+            if getattr(engine, "last_used", None) == "elevenlabs":
+                p = Polish(deess=0.0, treble_db=0.0, target_rms_db=p.target_rms_db)  # de-ess/shelf are tuned for EMA only
             if not p.is_identity():
                 try:
                     wav = await loop.run_in_executor(self._executor, polish_wav, wav, p)

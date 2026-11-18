@@ -144,7 +144,7 @@ def create_app(
             state.queue,
             state.hub,
             lambda: state.runtime.reader,
-            lambda: state.engine,
+            lambda: state.runtime.routed or state.engine,
             state.executor,
             state.ready,
             polish_getter=lambda: state.runtime.polish,

@@ -20,6 +20,16 @@ DEESS: 1.0            # 0 = off, 1 = normal (~ -15 dB sibilance/body), 2 = stron
 TREBLE_DB: -2.0       # high shelf above 5 kHz; -12 .. 6, 0 = off
 TARGET_RMS_DB: -20.0  # loudness target dBFS (over the louder half of the utterance); -40 .. -6, 0 = off
 
+# ElevenLabs (app/engine/eleven.py). The API key is a secret: set it on /panel or as ELEVENLABS_API_KEY in the
+# kick-tts-secrets Secret, never here. With a key, ElevenLabs reads everything and EMA is the automatic fallback.
+ELEVENLABS_VOICE_ID: "21m00Tcm4TlvDq8ikWAM"   # your voice id from elevenlabs.io (a voice id set on /panel wins)
+ELEVENLABS_MODEL: eleven_turbo_v2_5          # eleven_flash_v2_5 = cheapest/fastest, eleven_multilingual_v2 = richest
+ELEVENLABS_STABILITY: 0.5                    # lower = more expressive, higher = steadier
+ELEVENLABS_SIMILARITY: 0.75
+ELEVENLABS_STYLE: 0.0                        # >0 exaggerates the style, costs latency
+ELEVENLABS_SPEED: 1.0                        # 0.7 .. 1.2
+ELEVENLABS_TIMEOUT_S: 8                      # after this EMA reads the item, and ElevenLabs is skipped for 20 s
+
 # --- kick event mapping (uncomment to override the defaults) -----------------------------------
 # MIN_KICKS: 1                 # gifts below this amount are not read
 # REWARD_TITLE: TTS            # channel-point reward whose redemptions are read

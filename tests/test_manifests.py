@@ -195,7 +195,7 @@ def test_secret_example_has_only_placeholders():
     assert secret["metadata"]["name"] == "kick-tts-secrets"
     data = secret["stringData"]
     assert set(data) == {
-        "CONTROL_TOKEN", "OVERLAY_KEY", "ANTHROPIC_API_KEY",
+        "CONTROL_TOKEN", "OVERLAY_KEY", "ANTHROPIC_API_KEY", "ELEVENLABS_API_KEY",
         "KICK_CLIENT_ID", "KICK_CLIENT_SECRET", "KICK_BROADCASTER_USER_ID",
         "DISCORD_CLIENT_ID", "DISCORD_CLIENT_SECRET",
     }

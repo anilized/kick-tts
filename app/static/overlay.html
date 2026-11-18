@@ -14,28 +14,51 @@
     overflow: hidden;
     font-family: "Segoe UI", Roboto, Arial, sans-serif;
   }
+  /* GTA VI look: Vice City sunset gradient (pink to orange), neon outline, dark glass. */
   #caption {
     position: fixed;
     left: 50%;
     bottom: 64px;
-    transform: translateX(-50%);
+    transform: translateX(-50%) translateY(12px);
     max-width: 80%;
     box-sizing: border-box;
-    padding: 12px 28px;
+    padding: 14px 32px 16px;
     text-align: center;
-    font-size: 48px;
+    font-size: 46px;
     line-height: 1.25;
     font-weight: 800;
     color: #fff;
     overflow-wrap: anywhere;
     word-break: break-word;
-    text-shadow:
-      -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000,
-      0 0 8px rgba(0, 0, 0, 0.9), 0 4px 12px rgba(0, 0, 0, 0.8);
+    background: linear-gradient(135deg, rgba(20, 6, 40, 0.86), rgba(60, 10, 60, 0.82));
+    border: 3px solid transparent;
+    border-radius: 18px;
+    background-clip: padding-box;
+    box-shadow:
+      0 0 0 3px #ff4fa3, 0 0 0 6px #ff9d3c,
+      0 0 28px rgba(255, 79, 163, 0.65), 0 8px 24px rgba(0, 0, 0, 0.6);
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.85);
     opacity: 0;
-    transition: opacity 0.15s ease;
+    transition: opacity 0.2s ease, transform 0.2s ease;
   }
-  #caption.show { opacity: 1; }
+  #caption.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #caption .tag {
+    display: block;
+    font-size: 20px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    color: #ffb347;
+  }
+  #caption .who {
+    background: linear-gradient(90deg, #ff4fa3, #ff9d3c);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    text-shadow: none;
+    margin-right: 0.35em;
+  }
   #hint {
     display: none;
     position: fixed;
@@ -112,7 +135,16 @@
   }
 
   function showCaption(item) {
-    captionEl.textContent = '🔊 TTS · ' + item.user + ': ' + item.caption;
+    captionEl.textContent = '';
+    var tag = document.createElement('span');
+    tag.className = 'tag';
+    tag.textContent = '🔊 TTS';
+    var who = document.createElement('span');
+    who.className = 'who';
+    who.textContent = item.user + ':';
+    captionEl.appendChild(tag);
+    captionEl.appendChild(who);
+    captionEl.appendChild(document.createTextNode(item.caption));
     captionEl.classList.add('show');
   }
 

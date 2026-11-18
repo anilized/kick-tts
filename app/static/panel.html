@@ -188,6 +188,22 @@
             </div>
             <p class="note">With a key, Claude rewrites each chat message into speakable Turkish before TTS (chat slang, acronyms, emotes); without one the rules cleaner is used. The key is stored on the server and never shown again in full.</p>
           </dd>
+          <dt>ElevenLabs voice</dt>
+          <dd>
+            <p id="el-status" class="note" style="margin:0 0 6px"></p>
+            <div class="row" style="margin:0">
+              <input id="el-key-input" type="password" placeholder="ElevenLabs API key" autocomplete="off" spellcheck="false" aria-label="ElevenLabs API key">
+              <button id="btn-el-key-save" class="btn sm" type="button">Save key</button>
+              <button id="btn-el-test" class="btn sm" type="button">Test</button>
+              <button id="btn-el-key-clear" class="btn sm danger" type="button">Remove</button>
+            </div>
+            <div class="row">
+              <input id="el-voice-input" type="text" placeholder="voice id" autocomplete="off" spellcheck="false" aria-label="ElevenLabs voice id">
+              <button id="btn-el-voice-save" class="btn sm" type="button">Save voice</button>
+              <label class="note" style="margin:0"><input id="el-on" type="checkbox"> use ElevenLabs</label>
+            </div>
+            <p class="note">With a key every utterance is read by ElevenLabs; the local EMA voice stays loaded and takes over by itself if ElevenLabs fails (the status above shows why). Untick to force EMA. Billing is per character, capped by MAX_TEXT_CHARS. The de-esser and treble below only apply to the EMA voice.</p>
+          </dd>
           <dt>De-esser</dt>
           <dd>
             <div class="row" style="margin:0">
@@ -519,8 +535,50 @@
     $('btn-key-clear').disabled = k.source !== 'panel';
     $('btn-key-test').disabled = !k.configured;
     $('btn-speed-reset').disabled = sp.source !== 'panel';
+    renderEleven(rt.elevenlabs);
     renderPolish(rt.polish);
   }
+
+  function renderEleven(e) {
+    if (!e) return;
+    var t;
+    if (!e.configured) t = 'No ElevenLabs key: the local EMA voice reads everything.';
+    else if (!e.enabled) t = 'ElevenLabs key saved but switched off: the local EMA voice is used.';
+    else {
+      t = 'ElevenLabs active (' + e.model + ', voice ' + e.voice_id + '), key ' + (e.source === 'panel' ? 'set on the panel' : 'from the Secret') + (e.hint ? ' · ' + e.hint : '') + '.';
+      if (e.last_used) t += ' Last utterance: ' + e.last_used + '.';
+      if (e.last_error) t += ' FALLBACK to EMA, last error: ' + e.last_error;
+    }
+    $('el-status').textContent = t;
+    $('el-on').checked = e.enabled;
+    if (document.activeElement !== $('el-voice-input')) $('el-voice-input').value = e.voice_id;
+    $('btn-el-key-clear').disabled = e.source !== 'panel';
+    $('btn-el-test').disabled = !e.configured;
+  }
+
+  function testVoice() {
+    rtMessage('Testing ElevenLabs (one short word)…');
+    return api('panel/settings/test-voice', { method: 'POST' }).then(function (r) { return r.json(); }).then(function (b) {
+      rtMessage(b.ok ? 'ElevenLabs works: ' + b.detail : 'ElevenLabs failed: ' + b.detail + '. EMA keeps reading until it works.', b.ok ? 'ok-text' : 'bad-text');
+    }).catch(function () { rtMessage('Test failed: request failed', 'bad-text'); });
+  }
+  $('btn-el-key-save').addEventListener('click', function () {
+    var v = $('el-key-input').value.trim();
+    if (!v) { rtMessage('Paste an ElevenLabs key first.', 'bad-text'); $('el-key-input').focus(); return; }
+    saveRuntime({ elevenlabs_api_key: v, use_elevenlabs: true }, function () { $('el-key-input').value = ''; testVoice(); });
+  });
+  $('btn-el-test').addEventListener('click', function () {
+    var v = $('el-key-input').value.trim();
+    if (v) saveRuntime({ elevenlabs_api_key: v, use_elevenlabs: true }, function () { $('el-key-input').value = ''; testVoice(); });
+    else testVoice();
+  });
+  $('btn-el-key-clear').addEventListener('click', function () {
+    if (confirm('Remove the ElevenLabs key set on the panel?')) saveRuntime({ elevenlabs_api_key: null });
+  });
+  $('btn-el-voice-save').addEventListener('click', function () {
+    saveRuntime({ elevenlabs_voice_id: $('el-voice-input').value.trim() || null }, testVoice);
+  });
+  $('el-on').addEventListener('change', function () { saveRuntime({ use_elevenlabs: $('el-on').checked }); });
 
   function renderPolish(p) {
     if (!p) return;

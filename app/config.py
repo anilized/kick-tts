@@ -65,6 +65,18 @@ class Settings(BaseSettings):
     TREBLE_DB: float = -2.0  # high shelf above 5 kHz, -12 .. 6; 0 off
     TARGET_RMS_DB: float = -20.0  # loudness target, -40 .. -6 dBFS; 0 off (peaks are always kept under -0.5 dBFS)
 
+    # ElevenLabs voice (app/engine/eleven.py). With a key the stream is read by ElevenLabs and the local EMA
+    # engine stays loaded as the automatic fallback. The key can also be set on /panel.
+    ELEVENLABS_API_KEY: SecretStr | None = None
+    ELEVENLABS_VOICE_ID: str = "21m00Tcm4TlvDq8ikWAM"  # premade "Rachel"; pick yours on /panel or settings.yaml
+    ELEVENLABS_MODEL: str = "eleven_turbo_v2_5"  # Turkish: eleven_turbo_v2_5, eleven_flash_v2_5, eleven_multilingual_v2
+    ELEVENLABS_TIMEOUT_S: float = 8.0
+    ELEVENLABS_STABILITY: float = 0.5
+    ELEVENLABS_SIMILARITY: float = 0.75
+    ELEVENLABS_STYLE: float = 0.0
+    ELEVENLABS_SPEED: float = 1.0  # 0.7 .. 1.2
+    ELEVENLABS_LANGUAGE: str = "tr"  # sent only to v2.5 models
+
     # kick event mapping
     KICK_BROADCASTER_USER_ID: int = 0
     MIN_KICKS: int = 1

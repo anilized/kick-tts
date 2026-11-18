@@ -75,6 +75,9 @@ class SettingsUpdate(BaseModel):
     deess: float | None = None
     treble_db: float | None = None
     target_rms_db: float | None = None
+    elevenlabs_api_key: str | None = None
+    elevenlabs_voice_id: str | None = None
+    use_elevenlabs: bool | None = None
 
 
 def session_payload(settings: Settings, base: str, who: Identity, runtime: Runtime | None = None) -> dict:
@@ -173,6 +176,14 @@ def build_router(settings: Settings, signer: Signer) -> APIRouter:
         if isinstance(who, Response):
             return who
         result = await request.app.state.runtime.check_reader()
+        return JSONResponse(result, headers={"Cache-Control": "no-store"})
+
+    @router.post("/panel/settings/test-voice")
+    async def panel_settings_test_voice(request: Request) -> Response:
+        who = authorized_or_error(request)
+        if isinstance(who, Response):
+            return who
+        result = await request.app.state.runtime.check_voice()
         return JSONResponse(result, headers={"Cache-Control": "no-store"})
 
     @router.post("/panel/logout")
