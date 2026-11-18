@@ -7,105 +7,217 @@
 <meta name="referrer" content="no-referrer">
 <style>
   :root {
-    --bg: #0f1115;
-    --panel: #171a21;
-    --panel-2: #1f232c;
-    --line: #2a2f3a;
-    --text: #e8eaf0;
-    --muted: #9aa3b2;
+    --bg: #0b0d11;
+    --panel: #14171d;
+    --panel-2: #1b1f27;
+    --inset: #0d0f14;
+    --line: #262b35;
+    --line-2: #343a47;
+    --text: #eceef3;
+    --muted: #98a1b0;
     --kick: #53fc18;
-    --kick-ink: #0b1a05;
+    --kick-ink: #071503;
     --discord: #5865f2;
     --ok: #3ddc84;
     --warn: #f5b942;
-    --bad: #ff5c5c;
-    --radius: 12px;
+    --bad: #ff6b6b;
+    --pink: #ff5fa2;
+    --orange: #ff9a3c;
+    --grad: linear-gradient(90deg, var(--pink), var(--orange));
+    --radius: 14px;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); }
-  body { font: 15px/1.5 "Segoe UI", Roboto, Helvetica, Arial, sans-serif; min-height: 100vh; }
-  a { color: inherit; }
-  header {
-    display: flex; align-items: center; justify-content: space-between; gap: 16px;
-    padding: 14px 24px; border-bottom: 1px solid var(--line); background: var(--panel);
-    position: sticky; top: 0; z-index: 2;
+  body {
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; min-height: 100vh;
+    background: radial-gradient(900px 320px at 85% -120px, rgba(255, 95, 162, 0.10), transparent 70%), var(--bg);
+    background-repeat: no-repeat;
   }
-  header h1 { margin: 0; font-size: 18px; letter-spacing: 0.3px; }
-  header h1 span { color: var(--kick); }
-  .who { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
+  a { color: inherit; }
+  b { color: var(--text); font-weight: 600; }
+  .hidden { display: none !important; }
+  code, .mono { font-family: Consolas, "SF Mono", Menlo, monospace; font-size: 13px; }
+  :focus-visible { outline: 2px solid var(--kick); outline-offset: 2px; }
+
+  /* top bar */
+  header {
+    position: sticky; top: 0; z-index: 5; background: rgba(15, 17, 22, 0.94); border-bottom: 1px solid var(--line);
+  }
+  .bar { display: flex; align-items: center; gap: 12px 16px; flex-wrap: wrap; max-width: 1000px; margin: 0 auto; padding: 12px 16px; }
+  header h1 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: 0.2px; white-space: nowrap; }
+  header h1 span { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .pills { display: flex; gap: 8px; flex-wrap: wrap; flex: 1 1 auto; }
+  .pill, .chip {
+    display: inline-flex; align-items: center; gap: 7px; padding: 4px 11px; border-radius: 999px; font-size: 12.5px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--muted); white-space: nowrap;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: 0 0 auto; }
+  .ok .dot { background: var(--ok); box-shadow: 0 0 0 3px rgba(61, 220, 132, 0.15); }
+  .warn .dot { background: var(--warn); box-shadow: 0 0 0 3px rgba(245, 185, 66, 0.15); }
+  .bad .dot { background: var(--bad); box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.15); }
+  .pill.ok, .pill.warn, .pill.bad { color: var(--text); }
+  .who { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--muted); margin-left: auto; }
   .who img { width: 28px; height: 28px; border-radius: 50%; background: var(--panel-2); }
   .who strong { color: var(--text); }
-  main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 64px; }
-  .hidden { display: none !important; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; }
-  .card.wide { grid-column: 1 / -1; }
-  .card h2 { margin: 0 0 6px; font-size: 16px; }
-  .card p.sub { margin: 0 0 14px; color: var(--muted); font-size: 13px; }
-  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px; border: 1px solid var(--line); color: var(--muted); }
-  .chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
-  .chip.ok .dot { background: var(--ok); } .chip.warn .dot { background: var(--warn); } .chip.bad .dot { background: var(--bad); }
-  .login { max-width: 460px; margin: 48px auto 0; text-align: center; }
-  .login h2 { font-size: 22px; margin: 0 0 6px; }
-  .login p { color: var(--muted); margin: 0 0 22px; }
+
+  /* tabs */
+  .tabs { display: flex; gap: 4px; max-width: 1000px; margin: 0 auto; padding: 0 12px; overflow-x: auto; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    position: relative; appearance: none; border: 0; background: none; color: var(--muted); font: inherit; font-weight: 600;
+    padding: 10px 14px 12px; cursor: pointer; white-space: nowrap; border-radius: 8px 8px 0 0;
+  }
+  .tab:hover { color: var(--text); }
+  .tab[aria-selected="true"] { color: var(--text); }
+  .tab[aria-selected="true"]::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--grad); }
+
+  main { max-width: 1000px; margin: 0 auto; padding: 22px 16px 72px; }
+  .stack { display: flex; flex-direction: column; gap: 16px; }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 22px; min-width: 0; }
+  .card.hero { border-color: var(--line-2); background: linear-gradient(180deg, #171b22, var(--panel)); }
+  .card h2 { margin: 0 0 4px; font-size: 16px; }
+  .card h3 { margin: 18px 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); font-weight: 600; }
+  .sub { margin: 0 0 16px; color: var(--muted); font-size: 13.5px; }
+  .note { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+  .ok-text { color: var(--ok); } .bad-text { color: var(--bad); }
+
+  /* buttons */
   .btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;
-    padding: 9px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2);
-    color: var(--text); font: inherit; font-weight: 600; text-decoration: none; line-height: 1.2;
+    padding: 9px 16px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--panel-2);
+    color: var(--text); font: inherit; font-weight: 600; text-decoration: none; line-height: 1.2; white-space: nowrap;
+    transition: background 0.15s, border-color 0.15s, filter 0.15s;
   }
-  .btn:hover { filter: brightness(1.12); }
-  .btn:disabled { opacity: 0.5; cursor: default; filter: none; }
-  .btn.sm { padding: 5px 10px; font-size: 13px; font-weight: 500; }
-  .btn.block { width: 100%; padding: 13px 16px; font-size: 16px; margin-bottom: 12px; }
-  .btn.kick { background: var(--kick); color: var(--kick-ink); border-color: var(--kick); }
+  .btn:hover { filter: brightness(1.15); }
+  .btn:active { filter: brightness(0.95); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
+  .btn.sm { padding: 6px 11px; font-size: 13px; border-radius: 8px; }
+  .btn.lg { padding: 12px 22px; font-size: 16px; }
+  .btn.primary, .btn.kick { background: var(--kick); color: var(--kick-ink); border-color: var(--kick); }
   .btn.discord { background: var(--discord); color: #fff; border-color: var(--discord); }
-  .btn.danger { border-color: #5a2a2a; color: #ffb3b3; }
+  .btn.danger { background: transparent; border-color: #5a2a2e; color: #ff9c9c; }
+  .btn.danger:hover { background: #2a1417; filter: none; }
+  .btn.block { width: 100%; padding: 13px 16px; font-size: 16px; margin-bottom: 12px; }
   .btn .glyph { font-weight: 900; font-size: 18px; line-height: 1; }
-  .kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; align-items: center; font-size: 14px; }
+  .spacer { flex: 1 1 auto; }
+
+  /* forms */
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .row + .row { margin-top: 10px; }
+  .field { margin-top: 16px; }
+  .field > .lbl { display: block; font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  input[type=text], input[type=password] {
+    flex: 1 1 220px; min-width: 0; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line-2);
+    background: var(--inset); color: var(--text); font: inherit;
+  }
+  input[type=text]:focus, input[type=password]:focus { outline: none; border-color: var(--kick); box-shadow: 0 0 0 3px rgba(83, 252, 24, 0.15); }
+  input::placeholder { color: #5d6675; }
+  input:disabled { opacity: 0.45; }
+  input[type=text].short { flex: 0 1 96px; text-align: center; }
+  input[type=text].big { padding: 13px 14px; font-size: 16px; }
+  input[type=range] { flex: 1 1 200px; min-width: 0; accent-color: var(--kick); height: 28px; }
+  .unit { font-size: 13px; color: var(--muted); }
+
+  /* toggle switch: a real checkbox, visually replaced by the track */
+  .switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; font-weight: 600; user-select: none; }
+  .switch input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+  .switch .track { position: relative; width: 40px; height: 22px; border-radius: 999px; background: #3a4150; flex: 0 0 auto; transition: background 0.15s; }
+  .switch .track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform 0.15s; }
+  .switch input:checked + .track { background: var(--kick); }
+  .switch input:checked + .track::after { transform: translateX(18px); background: var(--kick-ink); }
+  .switch input:focus-visible + .track { outline: 2px solid var(--kick); outline-offset: 2px; }
+
+  /* engine status line */
+  .engine-line {
+    display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line-2);
+    background: var(--inset); font-weight: 700; font-size: 15px; overflow-wrap: anywhere;
+  }
+  .engine-line .dot { margin-top: 7px; }
+  .engine-line.ok { border-color: rgba(61, 220, 132, 0.45); }
+  .engine-line.warn { border-color: rgba(245, 185, 66, 0.5); }
+  .engine-line.bad { border-color: rgba(255, 107, 107, 0.5); }
+
+  /* stat tiles */
+  .stat { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+  .stat > div { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+  .stat .lbl { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat .num { font-size: 22px; font-weight: 700; overflow-wrap: anywhere; }
+  .stat .num.small { font-size: 14px; font-weight: 600; padding-top: 6px; }
+
+  /* secrets, lists */
+  .kv { display: grid; grid-template-columns: max-content 1fr; gap: 10px 14px; align-items: center; font-size: 14px; margin: 0; }
   .kv dt { color: var(--muted); margin: 0; }
-  .kv dd { margin: 0; }
+  .kv dd { margin: 0; min-width: 0; }
   .secret { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  code, .mono { font-family: Consolas, "SF Mono", Menlo, monospace; font-size: 13px; }
   .box {
-    flex: 1 1 220px; min-width: 0; padding: 7px 10px; border-radius: 8px; background: #0b0d12; border: 1px solid var(--line);
+    flex: 1 1 220px; min-width: 0; padding: 8px 11px; border-radius: 10px; background: var(--inset); border: 1px solid var(--line);
     overflow-wrap: anywhere; word-break: break-all; color: #cfd6e4;
   }
   .box.masked { letter-spacing: 2px; color: var(--muted); }
   pre.box { margin: 0; white-space: pre-wrap; }
   .setting-list { list-style: none; margin: 0; padding: 0; }
-  .setting-list li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px dashed var(--line); font-size: 14px; }
+  .setting-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 14px; color: var(--muted); }
   .setting-list li:last-child { border-bottom: 0; }
-  .setting-list .val { color: var(--text); font-weight: 600; }
-  .on { color: var(--ok); } .off { color: var(--muted); }
-  ol.steps { margin: 10px 0 0; padding-left: 20px; color: var(--muted); font-size: 14px; }
-  ol.steps li { margin: 4px 0; }
-  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
-  input[type=text] {
-    flex: 1 1 200px; min-width: 0; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: #0b0d12; color: var(--text); font: inherit;
+  .setting-list .val { color: var(--text); font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+  .setting-list .val.on, .setting-list .val.off { padding: 2px 10px; border-radius: 999px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .setting-list .val.on { background: rgba(61, 220, 132, 0.14); color: var(--ok); }
+  .setting-list .val.off { background: #232833; color: var(--muted); }
+  ol.steps { margin: 0; padding-left: 20px; color: var(--muted); font-size: 14px; }
+  ol.steps li { margin: 6px 0; }
+
+  details.card > summary { cursor: pointer; font-weight: 700; font-size: 16px; list-style-position: inside; border-radius: 6px; }
+  details.card > summary span { font-weight: 400; font-size: 13px; color: var(--muted); margin-left: 6px; }
+
+  /* save feedback stays in view at the bottom of the Voice tab */
+  #rt-msg {
+    position: sticky; bottom: 14px; margin: 0; padding: 10px 14px; border-radius: 10px; background: #222733; border: 1px solid var(--line-2);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); font-size: 13.5px; overflow-wrap: anywhere;
   }
-  input[type=text].short { flex: 0 1 140px; }
-  input[type=password] {
-    flex: 1 1 260px; min-width: 0; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: #0b0d12; color: var(--text); font: inherit;
-  }
-  input[type=range] { flex: 1 1 220px; min-width: 0; accent-color: var(--kick); }
-  .ok-text { color: var(--ok); } .bad-text { color: var(--bad); }
-  .stat { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
-  .stat div { background: var(--panel-2); border-radius: 10px; padding: 10px 12px; }
-  .stat .lbl { color: var(--muted); font-size: 12px; }
-  .stat .num { font-size: 22px; font-weight: 700; }
-  .note { font-size: 13px; color: var(--muted); margin: 10px 0 0; }
+  #rt-msg:empty { display: none; }
+
   .alert { border-radius: 10px; padding: 10px 14px; margin: 0 0 16px; font-size: 14px; border: 1px solid; }
   .alert.bad { border-color: #5a2a2a; background: #2a1414; color: #ffb3b3; }
   .alert.warn { border-color: #5a4a1a; background: #2a2214; color: #ffe0a3; }
-  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #2a2f3a; color: #fff; padding: 8px 14px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+  .login { max-width: 460px; margin: 48px auto 0; text-align: center; }
+  .login h2 { font-size: 22px; margin: 0 0 6px; }
+  .login p { color: var(--muted); margin: 0 0 22px; }
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #2a2f3a; color: #fff; padding: 8px 14px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 10; }
   .toast.show { opacity: 1; }
   footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 32px; }
+
+  @media (max-width: 640px) {
+    .bar { padding: 10px 12px; }
+    .who .via { display: none; }
+    .card { padding: 16px; }
+    .kv { grid-template-columns: 1fr; gap: 4px; }
+    .kv dd { margin-bottom: 10px; }
+    .speak-row .btn { flex: 1 1 100%; }
+    .tab { padding: 10px 11px 12px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+  }
 </style>
 </head>
 <body>
 <header>
-  <h1>kick-tts <span>panel</span></h1>
-  <div id="header-right" class="who"></div>
+  <div class="bar">
+    <h1>kick-tts <span>panel</span></h1>
+    <div id="top-pills" class="pills hidden" aria-live="polite">
+      <span id="pill-ready" class="pill"><span class="dot"></span><span id="pill-ready-t">connecting…</span></span>
+      <span id="pill-queue" class="pill"><span class="dot"></span><span id="pill-queue-t">queue –</span></span>
+      <span id="pill-clients" class="pill"><span class="dot"></span><span id="pill-clients-t">overlay –</span></span>
+    </div>
+    <div id="header-right" class="who"></div>
+  </div>
+  <nav id="tabs" class="tabs hidden" role="tablist" aria-label="Panel sections">
+    <button id="tab-live" class="tab" type="button" role="tab" aria-selected="true" aria-controls="panel-live" data-tab="live">Live</button>
+    <button id="tab-voice" class="tab" type="button" role="tab" aria-selected="false" aria-controls="panel-voice" data-tab="voice" tabindex="-1">Voice</button>
+    <button id="tab-obs" class="tab" type="button" role="tab" aria-selected="false" aria-controls="panel-obs" data-tab="obs" tabindex="-1">OBS setup</button>
+    <button id="tab-triggers" class="tab" type="button" role="tab" aria-selected="false" aria-controls="panel-triggers" data-tab="triggers" tabindex="-1">Triggers</button>
+    <button id="tab-dev" class="tab" type="button" role="tab" aria-selected="false" aria-controls="panel-dev" data-tab="dev" tabindex="-1">Developer</button>
+  </nav>
 </header>
 <main>
   <div id="alert" class="alert hidden"></div>
@@ -120,29 +232,178 @@
     <h2>This account is not allowed here</h2>
     <p id="denied-text"></p>
     <p class="note">To allow it, the owner adds this entry to <code>PANEL_ALLOWED_USERS</code> in <code>app/settings.yaml</code>:</p>
-    <div class="secret" style="justify-content:center"><code id="denied-entry" class="box" style="flex:0 1 auto"></code><button id="denied-copy" class="btn sm" type="button">Copy</button></div>
+    <div class="secret" style="justify-content:center;margin-top:10px"><code id="denied-entry" class="box" style="flex:0 1 auto"></code><button id="denied-copy" class="btn sm" type="button">Copy</button></div>
     <p style="margin-top:22px"><button id="denied-logout" class="btn" type="button">Log out</button></p>
   </section>
+
   <section id="view-panel" class="hidden">
-    <div class="grid">
-      <div class="card wide">
-        <h2>OBS browser source</h2>
-        <p class="sub">Add a <b>Browser</b> source in OBS and use these values. The URL contains your overlay key: do not show it on stream.</p>
+
+    <!-- LIVE -->
+    <div id="panel-live" class="stack" role="tabpanel" aria-labelledby="tab-live">
+      <div class="card hero">
+        <h2>Say something</h2>
+        <p class="sub">Type a line and it is read on stream right away.</p>
+        <div class="row speak-row">
+          <input id="speak-text" type="text" class="big" placeholder="selam millet, test bir iki üç" maxlength="200" aria-label="text to speak">
+          <input id="speak-user" type="text" class="short big" placeholder="user" value="panel" aria-label="shown user name">
+          <button id="btn-speak" class="btn primary lg" type="button">Speak</button>
+        </div>
+        <h3>Queue controls</h3>
+        <div class="row">
+          <button id="btn-skip" class="btn" type="button">Skip</button>
+          <button id="btn-pause" class="btn" type="button">Pause</button>
+          <button id="btn-resume" class="btn" type="button">Resume</button>
+          <span class="spacer"></span>
+          <button id="btn-clear" class="btn danger" type="button">Clear queue</button>
+        </div>
+        <p id="live-msg" class="note mono" aria-live="polite"></p>
+        <p id="live-hint" class="note hidden" style="color:var(--warn)">No overlay is connected, so nothing will be heard. Add the browser source from the OBS setup tab.</p>
+      </div>
+      <div class="stat">
+        <div><div class="lbl">Readiness</div><div class="num" id="st-readiness">–</div></div>
+        <div><div class="lbl">Queue</div><div class="num" id="st-queue">–</div></div>
+        <div><div class="lbl">Overlay clients</div><div class="num" id="st-clients">–</div></div>
+        <div><div class="lbl">Paused</div><div class="num" id="st-paused">–</div></div>
+        <div><div class="lbl">Voice engine</div><div class="num small mono" id="st-engine">–</div></div>
+        <div><div class="lbl">Chat reader</div><div class="num small mono" id="st-reader">–</div></div>
+      </div>
+      <p class="note" style="margin:0">Status refreshes every 5 s.</p>
+    </div>
+
+    <!-- VOICE -->
+    <div id="panel-voice" class="stack hidden" role="tabpanel" aria-labelledby="tab-voice">
+      <div class="card hero">
+        <h2>ElevenLabs voice</h2>
+        <p class="sub">The main voice. If it fails, the local EMA voice takes over by itself.</p>
+        <div id="el-line" class="engine-line" aria-live="polite"><span class="dot"></span><span id="el-line-text">Checking…</span></div>
+        <p id="el-status" class="note"></p>
+        <div class="field">
+          <label class="switch"><input id="el-on" type="checkbox"><span class="track"></span>Use ElevenLabs</label>
+        </div>
+        <div class="field">
+          <label class="lbl" for="el-key-input">API key</label>
+          <div class="row">
+            <input id="el-key-input" type="password" placeholder="ElevenLabs API key" autocomplete="off" spellcheck="false" aria-label="ElevenLabs API key">
+            <button id="btn-el-key-save" class="btn primary" type="button">Save key</button>
+            <button id="btn-el-test" class="btn" type="button">Test</button>
+            <button id="btn-el-key-clear" class="btn danger" type="button">Remove</button>
+          </div>
+        </div>
+        <div class="field">
+          <label class="lbl" for="el-voice-input">Voice ID</label>
+          <div class="row">
+            <input id="el-voice-input" type="text" placeholder="voice id" autocomplete="off" spellcheck="false" aria-label="ElevenLabs voice id">
+            <button id="btn-el-voice-save" class="btn" type="button">Save voice</button>
+          </div>
+        </div>
+        <p class="note">Saving tests the voice with one short word. Billed per character, capped by MAX_TEXT_CHARS.</p>
+      </div>
+
+      <div class="card">
+        <h2>Speech speed</h2>
+        <p class="sub">1.0 is the natural pace, lower is slower.</p>
+        <div class="row">
+          <input id="speed-range" type="range" min="0.25" max="4" step="0.05" aria-label="speech speed">
+          <input id="speed-num" type="text" class="short" inputmode="decimal" aria-label="speech speed value">
+          <button id="btn-speed-save" class="btn primary" type="button">Save</button>
+          <button id="btn-speed-reset" class="btn" type="button">Reset</button>
+        </div>
+        <p id="speed-src" class="note"></p>
+      </div>
+
+      <details class="card">
+        <summary>Advanced audio polish <span>EMA voice only</span></summary>
+        <div class="field">
+          <label class="lbl" for="deess-range">De-esser</label>
+          <div class="row">
+            <input id="deess-range" type="range" min="0" max="3" step="0.1" aria-label="de-esser strength">
+            <input id="deess-num" type="text" class="short" inputmode="decimal" aria-label="de-esser value">
+          </div>
+          <p class="note">Softens harsh ş / s / ç sounds. 0 = off, 1 = normal, 2 = strong.</p>
+        </div>
+        <div class="field">
+          <label class="lbl" for="treble-range">Treble</label>
+          <div class="row">
+            <input id="treble-range" type="range" min="-12" max="6" step="0.5" aria-label="treble shelf dB">
+            <input id="treble-num" type="text" class="short" inputmode="decimal" aria-label="treble value">
+            <span class="unit">dB</span>
+          </div>
+          <p class="note">Above 5 kHz. Negative = softer.</p>
+        </div>
+        <div class="field">
+          <label class="lbl" for="level-range">Level</label>
+          <div class="row">
+            <input id="level-range" type="range" min="-40" max="-6" step="1" aria-label="loudness target dBFS">
+            <input id="level-num" type="text" class="short" inputmode="decimal" aria-label="level value">
+            <span class="unit">dBFS</span>
+            <label class="switch"><input id="level-on" type="checkbox"><span class="track"></span>Normalize</label>
+          </div>
+        </div>
+        <div class="field row">
+          <button id="btn-polish-save" class="btn primary" type="button">Save polish</button>
+          <button id="btn-polish-reset" class="btn" type="button">Reset polish</button>
+        </div>
+        <p id="polish-src" class="note"></p>
+      </details>
+
+      <div class="card">
+        <h2>Chat reader (Claude)</h2>
+        <p class="sub">With an Anthropic key, Claude rewrites chat slang, acronyms and emotes into speakable Turkish. Without one, the rules cleaner is used.</p>
+        <p id="key-status" class="note" style="margin:0 0 10px"></p>
+        <div class="row">
+          <input id="key-input" type="password" placeholder="sk-ant-…" autocomplete="off" spellcheck="false" aria-label="Anthropic API key">
+          <button id="btn-key-save" class="btn primary" type="button">Save key</button>
+          <button id="btn-key-test" class="btn" type="button">Test</button>
+          <button id="btn-key-clear" class="btn danger" type="button">Remove</button>
+        </div>
+      </div>
+
+      <p class="note" style="margin:0">Changes apply immediately and survive restarts. Keys are stored on the server and never shown again in full.</p>
+      <p id="rt-msg" class="note" role="status" aria-live="polite"></p>
+    </div>
+
+    <!-- OBS -->
+    <div id="panel-obs" class="stack hidden" role="tabpanel" aria-labelledby="tab-obs">
+      <div class="card hero">
+        <h2>Browser source URL</h2>
+        <p class="sub">Paste this into a <b>Browser</b> source in OBS. It contains your overlay key: do not show it on stream.</p>
         <dl class="kv">
           <dt>URL</dt>
-          <dd class="secret"><code id="overlay-url" class="box masked"></code><button class="btn sm" type="button" data-reveal="overlay-url">Show</button><button class="btn sm" type="button" data-copy="overlay-url">Copy</button></dd>
+          <dd class="secret"><code id="overlay-url" class="box masked"></code><button class="btn sm" type="button" data-reveal="overlay-url">Show</button><button class="btn sm primary" type="button" data-copy="overlay-url">Copy</button></dd>
           <dt>Debug URL</dt>
           <dd class="secret"><code id="overlay-url-debug" class="box masked"></code><button class="btn sm" type="button" data-reveal="overlay-url-debug">Show</button><button class="btn sm" type="button" data-copy="overlay-url-debug">Copy</button></dd>
         </dl>
-        <ul id="obs-settings" class="setting-list" style="margin-top:12px"></ul>
-        <ol class="steps">
-          <li>Sources → <b>+</b> → Browser. Paste the URL, set width and height as above, leave the custom CSS empty.</li>
-          <li>Tick <b>Control audio via OBS</b> so the TTS audio gets its own track in the Audio Mixer.</li>
-          <li>Turn <b>off</b> "Shutdown source when not visible" and "Refresh browser when scene becomes active", so the WebSocket stays connected.</li>
-          <li>Press <b>Speak</b> in the live card below: you should hear the voice and see the caption.</li>
-        </ol>
       </div>
+      <div class="cols">
+        <div class="card">
+          <h2>Source settings</h2>
+          <p class="sub">Set the browser source like this.</p>
+          <ul id="obs-settings" class="setting-list"></ul>
+        </div>
+        <div class="card">
+          <h2>Steps</h2>
+          <p class="sub">Two minutes, once.</p>
+          <ol class="steps">
+            <li>Sources → <b>+</b> → Browser. Paste the URL, set width and height, leave the custom CSS empty.</li>
+            <li>Tick <b>Control audio via OBS</b> so the TTS gets its own track in the Audio Mixer.</li>
+            <li>Turn <b>off</b> "Shutdown source when not visible" and "Refresh browser when scene becomes active", so the connection stays up.</li>
+            <li>Open the <b>Live</b> tab and press <b>Speak</b>: you should hear the voice and see the caption.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
 
+    <!-- TRIGGERS -->
+    <div id="panel-triggers" class="stack hidden" role="tabpanel" aria-labelledby="tab-triggers">
+      <div class="card">
+        <h2>Channel triggers</h2>
+        <p class="sub">What gets read aloud. Read-only here; edit <code>app/settings.yaml</code> to change.</p>
+        <ul id="channel-settings" class="setting-list"></ul>
+      </div>
+    </div>
+
+    <!-- DEVELOPER -->
+    <div id="panel-dev" class="stack hidden" role="tabpanel" aria-labelledby="tab-dev">
       <div class="card">
         <h2>Keys</h2>
         <p class="sub">Overlay key for the browser source, control token for Stream Deck / Streamer.bot / scripts.</p>
@@ -154,132 +415,26 @@
           <dt>Base URL</dt>
           <dd><code id="base-url" class="box" style="display:block"></code></dd>
         </dl>
-        <p class="note">Keys live in the <code>kick-tts-secrets</code> Secret. Rotate them there and restart the pod; the panel always shows the current values.</p>
+        <p class="note">Keys live in the <code>kick-tts-secrets</code> Secret. Rotate them there and restart the pod.</p>
       </div>
-
       <div class="card">
-        <h2>Channel triggers</h2>
-        <p class="sub">What is read aloud, from <code>app/settings.yaml</code>.</p>
-        <ul id="channel-settings" class="setting-list"></ul>
-      </div>
-
-      <div class="card wide">
-        <h2>Voice &amp; reader</h2>
-        <p class="sub">Changes apply immediately and survive restarts (stored on the server, not in the Secret). A value set here wins over the environment and <code>settings.yaml</code>.</p>
-        <dl class="kv">
-          <dt>Speech speed</dt>
-          <dd>
-            <div class="row" style="margin:0">
-              <input id="speed-range" type="range" min="0.25" max="4" step="0.05" aria-label="speech speed">
-              <input id="speed-num" type="text" class="short" inputmode="decimal" aria-label="speech speed value">
-              <button id="btn-speed-save" class="btn sm" type="button">Save</button>
-              <button id="btn-speed-reset" class="btn sm" type="button">Reset</button>
-            </div>
-            <p id="speed-src" class="note" style="margin:4px 0 0"></p>
-          </dd>
-          <dt>Anthropic API key</dt>
-          <dd>
-            <p id="key-status" class="note" style="margin:0 0 6px"></p>
-            <div class="row" style="margin:0">
-              <input id="key-input" type="password" placeholder="sk-ant-…" autocomplete="off" spellcheck="false" aria-label="Anthropic API key">
-              <button id="btn-key-save" class="btn sm" type="button">Save key</button>
-              <button id="btn-key-test" class="btn sm" type="button">Test</button>
-              <button id="btn-key-clear" class="btn sm danger" type="button">Remove</button>
-            </div>
-            <p class="note">With a key, Claude rewrites each chat message into speakable Turkish before TTS (chat slang, acronyms, emotes); without one the rules cleaner is used. The key is stored on the server and never shown again in full.</p>
-          </dd>
-          <dt>ElevenLabs voice</dt>
-          <dd>
-            <p id="el-status" class="note" style="margin:0 0 6px"></p>
-            <div class="row" style="margin:0">
-              <input id="el-key-input" type="password" placeholder="ElevenLabs API key" autocomplete="off" spellcheck="false" aria-label="ElevenLabs API key">
-              <button id="btn-el-key-save" class="btn sm" type="button">Save key</button>
-              <button id="btn-el-test" class="btn sm" type="button">Test</button>
-              <button id="btn-el-key-clear" class="btn sm danger" type="button">Remove</button>
-            </div>
-            <div class="row">
-              <input id="el-voice-input" type="text" placeholder="voice id" autocomplete="off" spellcheck="false" aria-label="ElevenLabs voice id">
-              <button id="btn-el-voice-save" class="btn sm" type="button">Save voice</button>
-              <label class="note" style="margin:0"><input id="el-on" type="checkbox"> use ElevenLabs</label>
-            </div>
-            <p class="note">With a key every utterance is read by ElevenLabs; the local EMA voice stays loaded and takes over by itself if ElevenLabs fails (the status above shows why). Untick to force EMA. Billing is per character, capped by MAX_TEXT_CHARS. The de-esser and treble below only apply to the EMA voice.</p>
-          </dd>
-          <dt>De-esser</dt>
-          <dd>
-            <div class="row" style="margin:0">
-              <input id="deess-range" type="range" min="0" max="3" step="0.1" aria-label="de-esser strength">
-              <input id="deess-num" type="text" class="short" inputmode="decimal" aria-label="de-esser value">
-            </div>
-            <p class="note" style="margin:4px 0 0">Turns the harsh ş / s / ç band (4.5 to 10 kHz) down only while it sticks out. 0 = off, 1 = normal, 2 = strong.</p>
-          </dd>
-          <dt>Treble</dt>
-          <dd>
-            <div class="row" style="margin:0">
-              <input id="treble-range" type="range" min="-12" max="6" step="0.5" aria-label="treble shelf dB">
-              <input id="treble-num" type="text" class="short" inputmode="decimal" aria-label="treble value">
-              <span class="note" style="margin:0">dB above 5 kHz (negative = softer)</span>
-            </div>
-          </dd>
-          <dt>Level</dt>
-          <dd>
-            <div class="row" style="margin:0">
-              <input id="level-range" type="range" min="-40" max="-6" step="1" aria-label="loudness target dBFS">
-              <input id="level-num" type="text" class="short" inputmode="decimal" aria-label="level value">
-              <label class="note" style="margin:0"><input id="level-on" type="checkbox"> normalize</label>
-              <span class="note" style="margin:0">dBFS target</span>
-            </div>
-            <div class="row">
-              <button id="btn-polish-save" class="btn sm" type="button">Save polish</button>
-              <button id="btn-polish-reset" class="btn sm" type="button">Reset polish</button>
-              <span id="polish-src" class="note" style="margin:0"></span>
-            </div>
-          </dd>
-        </dl>
-        <p id="rt-msg" class="note"></p>
-      </div>
-
-      <div class="card wide">
-        <h2>Live</h2>
-        <p class="sub">Service status, refreshed every 5 s, and the control endpoints used with your token.</p>
-        <div class="stat">
-          <div><div class="lbl">Readiness</div><div class="num" id="st-readiness">–</div></div>
-          <div><div class="lbl">Queue</div><div class="num" id="st-queue">–</div></div>
-          <div><div class="lbl">Overlay clients</div><div class="num" id="st-clients">–</div></div>
-          <div><div class="lbl">Paused</div><div class="num" id="st-paused">–</div></div>
-          <div><div class="lbl">Engine</div><div class="num mono" id="st-engine" style="font-size:15px">–</div></div>
-          <div><div class="lbl">Reader</div><div class="num mono" id="st-reader" style="font-size:15px">–</div></div>
-        </div>
-        <div class="row">
-          <input id="speak-text" type="text" placeholder="selam millet, test bir iki üç" maxlength="200">
-          <input id="speak-user" type="text" class="short" placeholder="user" value="panel">
-          <button id="btn-speak" class="btn" type="button">Speak</button>
-        </div>
-        <div class="row">
-          <button id="btn-skip" class="btn" type="button">Skip</button>
-          <button id="btn-pause" class="btn" type="button">Pause</button>
-          <button id="btn-resume" class="btn" type="button">Resume</button>
-          <button id="btn-clear" class="btn danger" type="button">Clear queue</button>
-          <span id="live-msg" class="note" style="margin:0"></span>
-        </div>
-      </div>
-
-      <div class="card wide">
         <h2>Stream Deck / scripts</h2>
-        <p class="sub">Every control call is <code>Authorization: Bearer &lt;control token&gt;</code>. Reveal to fill in your token.</p>
-        <div class="secret" style="margin-bottom:8px"><button class="btn sm" type="button" data-reveal="snippets">Show with token</button><button class="btn sm" type="button" data-copy="snippets">Copy</button></div>
-        <pre id="snippets" class="box masked"></pre>
+        <p class="sub">Every control call sends <code>Authorization: Bearer &lt;control token&gt;</code>.</p>
+        <div class="secret" style="margin-bottom:10px"><button class="btn sm" type="button" data-reveal="snippets">Show with token</button><button class="btn sm" type="button" data-copy="snippets">Copy</button></div>
+        <pre id="snippets" class="box mono masked"></pre>
       </div>
     </div>
+
   </section>
   <footer>kick-tts · the overlay always labels the audio as TTS</footer>
 </main>
-<div id="toast" class="toast"></div>
+<div id="toast" class="toast" role="status"></div>
 <script>
 (function () {
   'use strict';
 
   var $ = function (id) { return document.getElementById(id); };
-  var state = { me: null, token: null, revealed: {}, timer: null };
+  var state = { me: null, token: null, revealed: {}, timer: null, eleven: null, engine: null };
   var ERRORS = {
     denied: 'Login was cancelled at the provider.',
     state: 'Login state did not match (cookie missing or expired). Try again.',
@@ -290,6 +445,8 @@
     ['view-loading', 'view-login', 'view-denied', 'view-panel'].forEach(function (v) {
       $(v).classList.toggle('hidden', v !== id);
     });
+    $('tabs').classList.toggle('hidden', id !== 'view-panel');
+    $('top-pills').classList.toggle('hidden', id !== 'view-panel');
   }
 
   function el(tag, attrs, children) {
@@ -367,6 +524,44 @@
     }
   });
 
+  // -- tabs -----------------------------------------------------------------------------------------
+  // Plain section toggling; the active tab is remembered in the #hash only (no paths).
+
+  var TABS = ['live', 'voice', 'obs', 'triggers', 'dev'];
+
+  function selectTab(name, remember) {
+    if (TABS.indexOf(name) < 0) name = 'live';
+    TABS.forEach(function (t) {
+      var on = t === name;
+      var tab = $('tab-' + t);
+      tab.setAttribute('aria-selected', on ? 'true' : 'false');
+      tab.tabIndex = on ? 0 : -1;
+      $('panel-' + t).classList.toggle('hidden', !on);
+    });
+    if (remember) {
+      try {
+        if (history.replaceState) history.replaceState(null, '', '#' + name);
+        else location.hash = name;
+      } catch (e) { /* the hash is a convenience only */ }
+    }
+  }
+
+  function hashTab() { return (location.hash || '').replace('#', ''); }
+
+  TABS.forEach(function (t, i) {
+    var tab = $('tab-' + t);
+    tab.addEventListener('click', function () { selectTab(t, true); });
+    tab.addEventListener('keydown', function (ev) {
+      var step = ev.key === 'ArrowRight' ? 1 : (ev.key === 'ArrowLeft' ? -1 : 0);
+      if (!step) return;
+      ev.preventDefault();
+      var next = TABS[(i + step + TABS.length) % TABS.length];
+      selectTab(next, true);
+      $('tab-' + next).focus();
+    });
+  });
+  window.addEventListener('hashchange', function () { selectTab(hashTab(), false); });
+
   // -- api ------------------------------------------------------------------------------------------
   // All URLs are relative to this page (/panel or /tts/panel), never absolute.
 
@@ -414,7 +609,7 @@
       img.src = user.avatar;
       right.appendChild(img);
     }
-    right.appendChild(el('span', {}, [el('strong', { text: user.name }), ' via ' + user.provider]));
+    right.appendChild(el('span', {}, [el('strong', { text: user.name }), el('span', { class: 'via', text: ' via ' + user.provider })]));
     var btn = el('button', { class: 'btn sm', type: 'button', text: 'Log out' });
     btn.addEventListener('click', logout);
     right.appendChild(btn);
@@ -467,7 +662,7 @@
     obs.appendChild(settingItem('Control audio via OBS', onOff(s.obs.control_audio_via_obs), s.obs.control_audio_via_obs ? 'on' : 'off'));
     obs.appendChild(settingItem('Shutdown source when not visible', onOff(s.obs.shutdown_source_when_not_visible), s.obs.shutdown_source_when_not_visible ? 'on' : 'off'));
     obs.appendChild(settingItem('Refresh browser when scene becomes active', onOff(s.obs.refresh_browser_when_scene_becomes_active), s.obs.refresh_browser_when_scene_becomes_active ? 'on' : 'off'));
-    obs.appendChild(settingItem('Custom CSS', s.obs.custom_css ? s.obs.custom_css : '(empty, the page is transparent)'));
+    obs.appendChild(settingItem('Custom CSS', s.obs.custom_css ? s.obs.custom_css : 'empty'));
 
     var ch = $('channel-settings');
     var c = s.channel;
@@ -505,6 +700,7 @@
     renderSecret('snippets');
 
     renderRuntime(me.runtime);
+    selectTab(hashTab(), false);
     show('view-panel');
     pollStatus();
     clearInterval(state.timer);
@@ -521,15 +717,15 @@
     $('speed-range').value = String(sp.value);
     $('speed-num').value = String(sp.value);
     $('speed-src').textContent = sp.source === 'panel'
-      ? 'Set on the panel. Reset returns to the settings.yaml value (' + sp.default + ').' + (rt.engine_speed_applied ? '' : ' Applied as soon as the engine is ready.')
-      : 'From settings.yaml (' + sp.default + '). 1.0 is the natural pace, lower is slower.';
+      ? 'Set here. Reset returns to the settings.yaml value (' + sp.default + ').' + (rt.engine_speed_applied ? '' : ' Applied as soon as the engine is ready.')
+      : 'Using the settings.yaml value (' + sp.default + ').';
     var k = rt.anthropic_api_key;
     var status;
     if (k.configured) {
-      status = 'LLM reader active (' + rt.reader_model + '), key ' + (k.source === 'panel' ? 'set on the panel' : 'from the Secret') + (k.hint ? ' · ' + k.hint : '') + '.';
+      status = 'Claude reader active (' + rt.reader_model + '), key ' + (k.source === 'panel' ? 'set here' : 'from the Secret') + (k.hint ? ' · ' + k.hint : '') + '.';
       if (k.source === 'env') status += ' Saving a key here overrides it.';
     } else {
-      status = 'No key: the rules cleaner reads the chat (reader "' + rt.reader + '"). Paste a key to enable the Claude reader.';
+      status = 'No key: the rules cleaner reads the chat (reader "' + rt.reader + '").';
     }
     $('key-status').textContent = status;
     $('btn-key-clear').disabled = k.source !== 'panel';
@@ -541,19 +737,43 @@
 
   function renderEleven(e) {
     if (!e) return;
-    var t;
-    if (!e.configured) t = 'No ElevenLabs key: the local EMA voice reads everything.';
-    else if (!e.enabled) t = 'ElevenLabs key saved but switched off: the local EMA voice is used.';
-    else {
-      t = 'ElevenLabs active (' + e.model + ', voice ' + e.voice_id + '), key ' + (e.source === 'panel' ? 'set on the panel' : 'from the Secret') + (e.hint ? ' · ' + e.hint : '') + '.';
-      if (e.last_used) t += ' Last utterance: ' + e.last_used + '.';
-      if (e.last_error) t += ' FALLBACK to EMA, last error: ' + e.last_error;
-    }
-    $('el-status').textContent = t;
+    state.eleven = e;
+    renderEngineLine();
     $('el-on').checked = e.enabled;
     if (document.activeElement !== $('el-voice-input')) $('el-voice-input').value = e.voice_id;
     $('btn-el-key-clear').disabled = e.source !== 'panel';
     $('btn-el-test').disabled = !e.configured;
+  }
+
+  // One clear line about which engine is speaking. The settings (e) say what is configured; the status poll
+  // (state.engine: 'elevenlabs', or '<local> (ElevenLabs failing)') says what is happening right now.
+  function renderEngineLine() {
+    var e = state.eleven;
+    if (!e) return;
+    var eng = state.engine ? String(state.engine) : '';
+    var kind, line, detail;
+    if (!e.configured) {
+      kind = ''; line = 'ElevenLabs off';
+      detail = 'No key yet. The local EMA voice reads everything. Paste a key below to switch on ElevenLabs.';
+    } else if (!e.enabled) {
+      kind = ''; line = 'ElevenLabs off';
+      detail = 'Key saved, switched off. The local EMA voice reads everything.';
+    } else {
+      var failing = eng ? /failing/i.test(eng) : !!e.last_error;
+      var inactive = !failing && eng && eng.toLowerCase().indexOf('elevenlabs') !== 0;
+      detail = 'Model ' + e.model + ' · voice ' + e.voice_id + ' · key ' + (e.source === 'panel' ? 'set here' : 'from the Secret') + (e.hint ? ' (' + e.hint + ')' : '') + '.';
+      if (failing) {
+        kind = 'bad'; line = 'Fallback: EMA (' + (e.last_error || 'ElevenLabs failing') + ')';
+        detail += ' Press Test to retry.';
+      } else if (inactive) {
+        kind = 'warn'; line = 'Fallback: EMA (ElevenLabs not active, engine is ' + eng + ')';
+      } else {
+        kind = 'ok'; line = 'Speaking with ElevenLabs';
+      }
+    }
+    $('el-line').className = 'engine-line ' + kind;
+    $('el-line-text').textContent = line;
+    $('el-status').textContent = detail;
   }
 
   function testVoice() {
@@ -579,6 +799,9 @@
     saveRuntime({ elevenlabs_voice_id: $('el-voice-input').value.trim() || null }, testVoice);
   });
   $('el-on').addEventListener('change', function () { saveRuntime({ use_elevenlabs: $('el-on').checked }); });
+  $('el-key-input').addEventListener('input', function () {
+    if ($('el-key-input').value.trim()) $('btn-el-test').disabled = false;
+  });
 
   function renderPolish(p) {
     if (!p) return;
@@ -602,8 +825,8 @@
     });
     var fromPanel = ['deess', 'treble_db', 'target_rms_db'].filter(function (n) { return p[n].source === 'panel'; });
     $('polish-src').textContent = fromPanel.length
-      ? 'Set on the panel. Reset returns to settings.yaml (' + p.deess.default + ' / ' + p.treble_db.default + ' dB / ' + p.target_rms_db.default + ' dBFS).'
-      : 'From settings.yaml. Changes apply to the next utterance; press Speak in the live card to hear them.';
+      ? 'Set here. Reset returns to settings.yaml (' + p.deess.default + ' / ' + p.treble_db.default + ' dB / ' + p.target_rms_db.default + ' dBFS).'
+      : 'Using settings.yaml. Changes apply to the next line; press Speak on the Live tab to hear them.';
     $('btn-polish-reset').disabled = fromPanel.length === 0;
   }
 
@@ -640,6 +863,7 @@
       return r.json().then(function (b) {
         if (r.status === 401 || r.status === 403) { location.replace('panel'); return; }
         if (r.status !== 200) { rtMessage('Not saved: ' + (b.detail || ('HTTP ' + r.status)), 'bad-text'); return; }
+        state.engine = null;  // stale until the poll below answers
         renderRuntime(b.runtime);
         rtMessage('Saved.', 'ok-text');
         pollStatus();
@@ -683,11 +907,15 @@
   $('key-input').addEventListener('input', function () {
     var pending = $('key-input').value.trim().length > 0;
     $('btn-key-test').disabled = false;
-    $('btn-key-save').textContent = pending ? 'Save key' : 'Save key';
     if (pending) rtMessage('Key not saved yet: press Save key (or Test, which saves first).', '');
   });
 
   // -- live -----------------------------------------------------------------------------------------
+
+  function setPill(id, kind, text) {
+    $(id).className = 'pill ' + kind;
+    $(id + '-t').textContent = text;
+  }
 
   function pollStatus() {
     if (!state.token) return;
@@ -696,17 +924,26 @@
       return r.json();
     }).then(function (st) {
       if (!st) return;
+      var readyKind = st.readiness === 'ready' ? 'ok' : (st.readiness === 'failed' ? 'bad' : 'warn');
       $('st-readiness').textContent = st.readiness + (st.error ? ' (' + st.error + ')' : '');
-      $('st-readiness').style.color = st.readiness === 'ready' ? 'var(--ok)' : (st.readiness === 'failed' ? 'var(--bad)' : 'var(--warn)');
+      $('st-readiness').style.color = 'var(--' + readyKind + ')';
       $('st-queue').textContent = String(st.queue_length);
       $('st-clients').textContent = String(st.clients);
       $('st-clients').style.color = st.clients > 0 ? 'var(--ok)' : 'var(--warn)';
       $('st-paused').textContent = st.paused ? 'yes' : 'no';
+      $('st-paused').style.color = st.paused ? 'var(--warn)' : '';
       $('st-engine').textContent = st.engine || '–';
       $('st-reader').textContent = st.reader || '–';
+      setPill('pill-ready', readyKind, st.paused ? st.readiness + ' · paused' : String(st.readiness));
+      setPill('pill-queue', st.queue_length > 0 ? 'ok' : '', 'queue ' + st.queue_length);
+      setPill('pill-clients', st.clients > 0 ? 'ok' : 'warn', st.clients > 0 ? 'overlay connected' + (st.clients > 1 ? ' ×' + st.clients : '') : 'no overlay');
+      $('live-hint').classList.toggle('hidden', st.clients > 0);
+      state.engine = st.engine || null;
+      renderEngineLine();
     }).catch(function () {
       $('st-readiness').textContent = 'unreachable';
       $('st-readiness').style.color = 'var(--bad)';
+      setPill('pill-ready', 'bad', 'unreachable');
     });
   }
 

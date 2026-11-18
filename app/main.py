@@ -305,11 +305,22 @@ def create_app(
             "clients": st.hub.clients,
             "readiness": st.readiness,
             "error": st.readiness_error,
-            "engine": getattr(st.engine, "name", None),
+            "engine": _engine_label(st),
             "reader": getattr(st.runtime.reader, "name", None),
         }
 
     return app
+
+
+def _engine_label(st) -> str | None:
+    local = getattr(st.engine, "name", None)
+    rt = st.runtime
+    if rt.eleven_active:
+        routed = rt.routed
+        if routed is not None and routed.last_error:
+            return f"{local} (ElevenLabs failing)"
+        return "elevenlabs"
+    return local
 
 
 app = create_app(Settings())
